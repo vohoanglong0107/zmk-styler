@@ -1,4 +1,5 @@
 use nom::{
+    branch::alt,
     bytes::complete::{tag, take_while1, take_while_m_n},
     character::complete::{anychar, multispace0},
     combinator::{cut, opt, verify},
@@ -7,31 +8,18 @@ use nom::{
     IResult,
 };
 
-#[derive(Debug, PartialEq, Eq)]
-struct Node {
-    label: Option<String>,
-    name: String,
-    address: Option<String>,
-    children: Vec<Node>,
-}
+use crate::ast::{Node, Property};
+
+use super::property::parse_property;
 
 fn parse_node(input: &str) -> IResult<&str, Node> {
-    let inner_body_parser = many0(delimited(multispace0, parse_node, multispace0));
-    let body_parser = terminated(
-        delimited(
-            preceded(multispace0, tag("{")),
-            inner_body_parser,
-            terminated(tag("}"), multispace0),
-        ),
-        tag(";"),
-    );
     let mut parser = tuple((
         opt(terminated(parse_label, multispace0)),
         parse_node_name,
         opt(parse_address),
-        body_parser,
+        parse_node_body,
     ));
-    let (rest, (label, name, address, children)) = parser(input)?;
+    let (rest, (label, name, address, (properties, children))) = parser(input)?;
     Ok((
         rest,
         Node {
@@ -39,6 +27,7 @@ fn parse_node(input: &str) -> IResult<&str, Node> {
             name,
             address: address.map(|address| address.to_string()),
             children,
+            properties,
         },
     ))
 }
@@ -46,10 +35,6 @@ fn parse_node(input: &str) -> IResult<&str, Node> {
 fn parse_label(input: &str) -> IResult<&str, &str> {
     let mut parser = terminated(take_while_m_n(1, 31, is_valid_label_character), tag(":"));
     parser(input)
-}
-
-fn parse_property_name(input: &str) -> IResult<&str, &str> {
-    take_while_m_n(1, 31, is_valid_property_name_character)(input)
 }
 
 fn parse_node_name(input: &str) -> IResult<&str, String> {
@@ -66,6 +51,50 @@ fn parse_address(input: &str) -> IResult<&str, &str> {
     parser(input)
 }
 
+fn parse_node_body(input: &str) -> IResult<&str, (Vec<Property>, Vec<Node>)> {
+    let inner_body_parser = many0(delimited(
+        multispace0,
+        alt((
+            parse_node_body_node_definition,
+            parse_node_body_property_definition,
+        )),
+        multispace0,
+    ));
+    let mut parser = terminated(
+        delimited(
+            preceded(multispace0, tag("{")),
+            inner_body_parser,
+            terminated(tag("}"), multispace0),
+        ),
+        tag(";"),
+    );
+    let (rest, body) = parser(input)?;
+    let mut children = Vec::new();
+    let mut properties = Vec::new();
+    for definition in body {
+        match definition {
+            NodeBodyDefinition::Node(node) => children.push(node),
+            NodeBodyDefinition::Property(property) => properties.push(property),
+        }
+    }
+    Ok((rest, (properties, children)))
+}
+
+enum NodeBodyDefinition {
+    Node(Node),
+    Property(Property),
+}
+
+fn parse_node_body_node_definition(input: &str) -> IResult<&str, NodeBodyDefinition> {
+    let (rest, node) = parse_node(input)?;
+    Ok((rest, NodeBodyDefinition::Node(node)))
+}
+
+fn parse_node_body_property_definition(input: &str) -> IResult<&str, NodeBodyDefinition> {
+    let (rest, property) = parse_property(input)?;
+    Ok((rest, NodeBodyDefinition::Property(property)))
+}
+
 const VALID_NODE_NAME_CHAR: &str = ",._+-";
 
 fn is_valid_node_name_character(c: char) -> bool {
@@ -76,14 +105,10 @@ fn is_valid_label_character(c: char) -> bool {
     c.is_alphanumeric() || c == '_'
 }
 
-const VALID_PROPERTY_NAME_CHAR: &str = ",._+?#-";
-
-fn is_valid_property_name_character(c: char) -> bool {
-    c.is_alphanumeric() || VALID_PROPERTY_NAME_CHAR.contains(c)
-}
-
 #[cfg(test)]
 mod test {
+    use crate::ast::PropertyValue;
+
     use super::*;
 
     #[test]
@@ -96,7 +121,8 @@ mod test {
                     label: None,
                     name: "node".to_string(),
                     address: None,
-                    children: Vec::new()
+                    children: Vec::new(),
+                    properties: Vec::new()
                 }
             ))
         );
@@ -112,7 +138,8 @@ mod test {
                     label: Some("label".to_string()),
                     name: "node".to_string(),
                     address: None,
-                    children: Vec::new()
+                    children: Vec::new(),
+                    properties: Vec::new()
                 }
             ))
         );
@@ -128,7 +155,8 @@ mod test {
                     label: Some("label".to_string()),
                     name: "node".to_string(),
                     address: Some("12".to_string()),
-                    children: Vec::new()
+                    children: Vec::new(),
+                    properties: Vec::new()
                 }
             ))
         );
@@ -159,15 +187,18 @@ mod test {
                             label: None,
                             name: "child1".to_string(),
                             address: None,
-                            children: Vec::new()
+                            children: Vec::new(),
+                            properties: Vec::new()
                         },
                         Node {
                             label: None,
                             name: "child2".to_string(),
                             address: None,
-                            children: Vec::new()
+                            children: Vec::new(),
+                            properties: Vec::new()
                         }
-                    ]
+                    ],
+                    properties: Vec::new()
                 }
             ))
         );
@@ -195,7 +226,8 @@ mod test {
                             label: Some("label1".to_string()),
                             name: "child1".to_string(),
                             address: None,
-                            children: Vec::new()
+                            children: Vec::new(),
+                            properties: Vec::new()
                         },
                         Node {
                             label: Some("label2".to_string()),
@@ -205,20 +237,46 @@ mod test {
                                 label: Some("label21".to_string()),
                                 name: "child21".to_string(),
                                 address: None,
-                                children: Vec::new()
-                            }]
+                                children: Vec::new(),
+                                properties: Vec::new()
+                            }],
+                            properties: Vec::new()
                         }
-                    ]
+                    ],
+                    properties: Vec::new()
                 }
             ))
         );
     }
 
     #[test]
-    fn parse_property_name_correctly() {
+    fn parse_node_with_properties_correctly() {
         assert_eq!(
-            parse_property_name("ibm,ppc-interrupt-server#s"),
-            Ok(("", "ibm,ppc-interrupt-server#s"))
+            parse_node(
+                r#"node {
+    property-one;
+    label1: child1 {};
+};"#
+            ),
+            Ok((
+                "",
+                Node {
+                    label: None,
+                    name: "node".to_string(),
+                    address: None,
+                    children: vec![Node {
+                        label: Some("label1".to_string()),
+                        name: "child1".to_string(),
+                        address: None,
+                        children: Vec::new(),
+                        properties: Vec::new()
+                    },],
+                    properties: vec![Property {
+                        name: "property-one".to_string(),
+                        value: PropertyValue::Bool
+                    }]
+                }
+            ))
         );
     }
 }
