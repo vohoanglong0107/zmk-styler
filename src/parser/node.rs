@@ -12,12 +12,13 @@ use crate::ast::{Node, Property};
 
 use super::property::parse_property;
 
-fn parse_node(input: &str) -> IResult<&str, Node> {
+pub(crate) fn parse_node(input: &str) -> IResult<&str, Node> {
     let mut parser = tuple((
         opt(terminated(parse_label, multispace0)),
         parse_node_name,
         opt(parse_address),
-        parse_node_body,
+        // Todo: remove terminated after handling parsing multiple nodes in a file
+        terminated(parse_node_body, multispace0),
     ));
     let (rest, (label, name, address, (properties, children))) = parser(input)?;
     Ok((
