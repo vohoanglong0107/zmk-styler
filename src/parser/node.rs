@@ -15,7 +15,7 @@ use super::property::parse_property;
 pub(crate) fn parse_node(input: &str) -> IResult<&str, Node> {
     let mut parser = tuple((
         opt(terminated(parse_label, multispace0)),
-        parse_node_name,
+        alt((parse_root_node, parse_node_name)),
         opt(parse_address),
         // Todo: remove terminated after handling parsing multiple nodes in a file
         terminated(parse_node_body, multispace0),
@@ -45,6 +45,12 @@ fn parse_node_name(input: &str) -> IResult<&str, String> {
     let (rest, (first_character, rest_node_name)) = parser(input)?;
 
     Ok((rest, String::from(first_character) + rest_node_name))
+}
+
+fn parse_root_node(input: &str) -> IResult<&str, String> {
+    let parser = tag("/");
+    let (rest, root) = parser(input)?;
+    Ok((rest, root.to_string()))
 }
 
 fn parse_address(input: &str) -> IResult<&str, &str> {
@@ -121,6 +127,23 @@ mod test {
                 Node {
                     label: None,
                     name: "node".to_string(),
+                    address: None,
+                    children: Vec::new(),
+                    properties: Vec::new()
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn parse_root_node_correctly() {
+        assert_eq!(
+            parse_node("/ {};"),
+            Ok((
+                "",
+                Node {
+                    label: None,
+                    name: "/".to_string(),
                     address: None,
                     children: Vec::new(),
                     properties: Vec::new()
