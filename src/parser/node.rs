@@ -114,75 +114,94 @@ fn is_valid_label_character(c: char) -> bool {
 
 #[cfg(test)]
 mod test {
-    use crate::ast::PropertyValue;
+    use insta::assert_debug_snapshot;
 
     use super::*;
 
     #[test]
     fn parse_node_correctly() {
-        assert_eq!(
-            parse_node("node {};"),
-            Ok((
+        assert_debug_snapshot!(parse_node("node {};"), @r#"
+        Ok(
+            (
                 "",
                 Node {
                     label: None,
-                    name: "node".to_string(),
+                    name: "node",
                     address: None,
-                    children: Vec::new(),
-                    properties: Vec::new()
-                }
-            ))
-        );
+                    children: [],
+                    properties: [],
+                },
+            ),
+        )
+        "#);
     }
 
     #[test]
     fn parse_root_node_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_node("/ {};"),
-            Ok((
+            @r#"
+        Ok(
+            (
                 "",
                 Node {
                     label: None,
-                    name: "/".to_string(),
+                    name: "/",
                     address: None,
-                    children: Vec::new(),
-                    properties: Vec::new()
-                }
-            ))
+                    children: [],
+                    properties: [],
+                },
+            ),
+        )
+        "#
         );
     }
 
     #[test]
     fn parse_node_with_label_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_node("label: node {};"),
-            Ok((
+            @r#"
+        Ok(
+            (
                 "",
                 Node {
-                    label: Some("label".to_string()),
-                    name: "node".to_string(),
+                    label: Some(
+                        "label",
+                    ),
+                    name: "node",
                     address: None,
-                    children: Vec::new(),
-                    properties: Vec::new()
-                }
-            ))
+                    children: [],
+                    properties: [],
+                },
+            ),
+        )
+        "#
         );
     }
 
     #[test]
     fn parse_node_with_address_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_node("label: node@12 {};"),
-            Ok((
+            @r#"
+        Ok(
+            (
                 "",
                 Node {
-                    label: Some("label".to_string()),
-                    name: "node".to_string(),
-                    address: Some("12".to_string()),
-                    children: Vec::new(),
-                    properties: Vec::new()
-                }
-            ))
+                    label: Some(
+                        "label",
+                    ),
+                    name: "node",
+                    address: Some(
+                        "12",
+                    ),
+                    children: [],
+                    properties: [],
+                },
+            ),
+        )
+        "#
         );
     }
 
@@ -193,44 +212,48 @@ mod test {
 
     #[test]
     fn parse_node_with_children_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_node(
                 r#"node {
     child1 {};
     child2 {};
 };"#
             ),
-            Ok((
+            @r#"
+        Ok(
+            (
                 "",
                 Node {
                     label: None,
-                    name: "node".to_string(),
+                    name: "node",
                     address: None,
-                    children: vec![
+                    children: [
                         Node {
                             label: None,
-                            name: "child1".to_string(),
+                            name: "child1",
                             address: None,
-                            children: Vec::new(),
-                            properties: Vec::new()
+                            children: [],
+                            properties: [],
                         },
                         Node {
                             label: None,
-                            name: "child2".to_string(),
+                            name: "child2",
                             address: None,
-                            children: Vec::new(),
-                            properties: Vec::new()
-                        }
+                            children: [],
+                            properties: [],
+                        },
                     ],
-                    properties: Vec::new()
-                }
-            ))
+                    properties: [],
+                },
+            ),
+        )
+        "#
         );
     }
 
     #[test]
     fn parse_node_with_nested_children_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_node(
                 r#"node {
     label1: child1 {};
@@ -239,68 +262,92 @@ mod test {
     };
 };"#
             ),
-            Ok((
+            @r#"
+        Ok(
+            (
                 "",
                 Node {
                     label: None,
-                    name: "node".to_string(),
+                    name: "node",
                     address: None,
-                    children: vec![
+                    children: [
                         Node {
-                            label: Some("label1".to_string()),
-                            name: "child1".to_string(),
+                            label: Some(
+                                "label1",
+                            ),
+                            name: "child1",
                             address: None,
-                            children: Vec::new(),
-                            properties: Vec::new()
+                            children: [],
+                            properties: [],
                         },
                         Node {
-                            label: Some("label2".to_string()),
-                            name: "child2".to_string(),
-                            address: Some("address2".to_string()),
-                            children: vec![Node {
-                                label: Some("label21".to_string()),
-                                name: "child21".to_string(),
-                                address: None,
-                                children: Vec::new(),
-                                properties: Vec::new()
-                            }],
-                            properties: Vec::new()
-                        }
+                            label: Some(
+                                "label2",
+                            ),
+                            name: "child2",
+                            address: Some(
+                                "address2",
+                            ),
+                            children: [
+                                Node {
+                                    label: Some(
+                                        "label21",
+                                    ),
+                                    name: "child21",
+                                    address: None,
+                                    children: [],
+                                    properties: [],
+                                },
+                            ],
+                            properties: [],
+                        },
                     ],
-                    properties: Vec::new()
-                }
-            ))
+                    properties: [],
+                },
+            ),
+        )
+        "#
         );
     }
 
     #[test]
     fn parse_node_with_properties_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_node(
                 r#"node {
     property-one;
     label1: child1 {};
 };"#
             ),
-            Ok((
+            @r#"
+        Ok(
+            (
                 "",
                 Node {
                     label: None,
-                    name: "node".to_string(),
+                    name: "node",
                     address: None,
-                    children: vec![Node {
-                        label: Some("label1".to_string()),
-                        name: "child1".to_string(),
-                        address: None,
-                        children: Vec::new(),
-                        properties: Vec::new()
-                    },],
-                    properties: vec![Property {
-                        name: "property-one".to_string(),
-                        value: PropertyValue::Bool
-                    }]
-                }
-            ))
+                    children: [
+                        Node {
+                            label: Some(
+                                "label1",
+                            ),
+                            name: "child1",
+                            address: None,
+                            children: [],
+                            properties: [],
+                        },
+                    ],
+                    properties: [
+                        Property {
+                            name: "property-one",
+                            value: Bool,
+                        },
+                    ],
+                },
+            ),
+        )
+        "#
         );
     }
 }

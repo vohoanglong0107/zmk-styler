@@ -37,27 +37,40 @@ fn is_valid_property_name_character(c: char) -> bool {
 
 #[cfg(test)]
 mod test {
+    use insta::assert_debug_snapshot;
+
     use super::*;
 
     #[test]
     fn parse_boolean_property_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_property("hold-trigger-on-release;"),
-            Ok((
+            @r#"
+        Ok(
+            (
                 "",
                 Property {
-                    name: "hold-trigger-on-release".to_string(),
-                    value: PropertyValue::Bool
-                }
-            ))
+                    name: "hold-trigger-on-release",
+                    value: Bool,
+                },
+            ),
+        )
+        "#
         )
     }
 
     #[test]
     fn parse_property_name_correctly() {
-        assert_eq!(
+        assert_debug_snapshot!(
             parse_property_name("ibm,ppc-interrupt-server#s"),
-            Ok(("", "ibm,ppc-interrupt-server#s"))
+            @r#"
+        Ok(
+            (
+                "",
+                "ibm,ppc-interrupt-server#s",
+            ),
+        )
+        "#
         );
     }
 }
