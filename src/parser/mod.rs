@@ -4,8 +4,8 @@ use node::parse_node;
 
 use crate::ast::Node;
 
-mod node;
-mod property;
+pub(crate) mod node;
+pub(crate) mod property;
 
 #[derive(Debug)]
 pub(crate) struct ParseError;

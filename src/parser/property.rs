@@ -7,7 +7,7 @@ use nom::{
 
 use crate::ast::{Property, PropertyValue};
 
-pub(super) fn parse_property(input: &str) -> IResult<&str, Property> {
+pub(crate) fn parse_property(input: &str) -> IResult<&str, Property> {
     let mut parser = alt((parse_boolean_property,));
     parser(input)
 }
