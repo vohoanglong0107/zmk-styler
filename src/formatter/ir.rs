@@ -17,6 +17,7 @@ pub(super) enum Document {
     Text(Text),
     Indent(Box<Indent>),
     Concat(Box<Concat>),
+    Nil,
 }
 
 impl Debug for Document {
@@ -25,6 +26,7 @@ impl Debug for Document {
             Self::Text(arg0) => write!(f, "{:#?}", arg0),
             Self::Indent(arg0) => write!(f, "{:#?}", arg0),
             Self::Concat(arg0) => write!(f, "{:#?}", arg0),
+            Self::Nil => write!(f, "Nil"),
         }
     }
 }
@@ -65,21 +67,29 @@ pub(super) fn indent(document: Document) -> Document {
             let docs = docs.0.into_iter().map(indent).collect();
             Document::Concat(Box::new(Concat(docs)))
         }
+        // nest i nil = nil
+        Document::Nil => Document::Nil,
     }
 }
 
 /// Concatenates multi document
-/// Maintains an invariant of no nested Concat type by expanding all nested Concat
+/// FIXME: this is O(n ^ 2)
 pub(super) fn concat(documents: Vec<Document>) -> Document {
     let mut expanded_documents = Vec::new();
     for doc in documents {
-        if let Document::Concat(nested_docs) = doc {
-            expanded_documents.extend((*nested_docs).0);
-        } else {
-            expanded_documents.push(doc);
-        };
+        match doc {
+            // x <> (y <> z) = x <> y <> z
+            Document::Concat(nested_docs) => expanded_documents.extend((*nested_docs).0),
+            Document::Text(_) | Document::Indent(_) => expanded_documents.push(doc),
+            // x <> nil = x
+            Document::Nil => {}
+        }
     }
     Document::Concat(Box::new(Concat(expanded_documents)))
+}
+
+pub(super) fn nil() -> Document {
+    Document::Nil
 }
 
 #[cfg(test)]

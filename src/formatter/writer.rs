@@ -26,6 +26,7 @@ impl Writer {
                     .collect::<Vec<_>>();
                 texts.join("")
             }
+            Document::Nil => "".to_string(),
         }
     }
 }

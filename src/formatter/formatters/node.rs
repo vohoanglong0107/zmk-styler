@@ -1,61 +1,62 @@
 use crate::{
     ast::{Node, Property},
-    formatter::ir::{concat, indent, new_line, space, tag, text, Document},
+    formatter::ir::{concat, indent, new_line, nil, space, tag, text, Document},
 };
 
 use super::property::format_property;
 
 pub(crate) fn format_node(node: Node) -> Document {
-    let mut docs = Vec::new();
-    if let Some(label) = node.label {
-        docs.push(format_label(label));
-    }
-    docs.push(text(node.name));
-    if let Some(address) = node.address {
-        docs.push(format_address(address));
-    }
-    docs.push(format_node_body(node.properties, node.children));
-    concat(docs)
+    concat(vec![
+        format_label(node.label),
+        text(node.name),
+        format_address(node.address),
+        format_node_body(node.properties, node.children),
+    ])
 }
 
-fn format_label(label: String) -> Document {
-    concat(vec![text(label), tag(":"), space()])
+fn format_label(label: Option<String>) -> Document {
+    match label {
+        Some(label) => concat(vec![text(label), tag(":"), space()]),
+        None => nil(),
+    }
 }
 
-fn format_address(address: String) -> Document {
-    concat(vec![tag("@"), text(address)])
+fn format_address(address: Option<String>) -> Document {
+    match address {
+        Some(address) => concat(vec![tag("@"), text(address)]),
+        None => nil(),
+    }
 }
 
 fn format_node_body(properties: Vec<Property>, children: Vec<Node>) -> Document {
-    let mut docs = Vec::new();
+    let multiline = !properties.is_empty() || !children.is_empty();
 
-    docs.extend([space(), tag("{")]);
-    let should_new_line_closing_bracket = !properties.is_empty() || !children.is_empty();
-    if !properties.is_empty() {
-        docs.push(format_properties(properties));
-    }
-    if !children.is_empty() {
-        docs.push(format_children(children));
-    }
-
-    if should_new_line_closing_bracket {
-        docs.push(new_line());
-    }
-    docs.extend([tag("}"), tag(";")]);
-    concat(docs)
+    concat(vec![
+        space(),
+        tag("{"),
+        format_properties(properties),
+        format_children(children),
+        if multiline { new_line() } else { nil() },
+        tag("}"),
+        tag(";"),
+    ])
 }
 
 fn format_properties(properties: Vec<Property>) -> Document {
-    let mut props = Vec::new();
-    props.extend(
-        properties
-            .into_iter()
-            .flat_map(|prop| vec![new_line(), format_property(prop)]),
-    );
+    if properties.is_empty() {
+        return nil();
+    }
+    let props = properties
+        .into_iter()
+        .flat_map(|prop| [new_line(), format_property(prop)])
+        .collect();
     indent(concat(props))
 }
 
 fn format_children(nodes: Vec<Node>) -> Document {
+    if nodes.is_empty() {
+        return nil();
+    }
     let mut children = Vec::new();
     children.extend(
         nodes
