@@ -48,8 +48,7 @@ fn format_properties(properties: Vec<Property>) -> Document {
     }
     let props = properties
         .into_iter()
-        .flat_map(|prop| [new_line(), format_property(prop)])
-        .collect();
+        .flat_map(|prop| [new_line(), format_property(prop)]);
     indent(concat(props))
 }
 
@@ -89,11 +88,9 @@ mod test {
         assert_debug_snapshot!(format_node(node), @r#"
         Concat(
             [
-                Nil,
                 Text(
                     "/",
                 ),
-                Nil,
                 Concat(
                     [
                         Text(
@@ -126,11 +123,9 @@ mod test {
                                 },
                                 Concat(
                                     [
-                                        Nil,
                                         Text(
                                             "behaviors",
                                         ),
-                                        Nil,
                                         Concat(
                                             [
                                                 Text(
@@ -139,7 +134,6 @@ mod test {
                                                 Text(
                                                     "{",
                                                 ),
-                                                Nil,
                                                 Concat(
                                                     [
                                                         Indent {
@@ -163,7 +157,6 @@ mod test {
                                                                 Text(
                                                                     "lower",
                                                                 ),
-                                                                Nil,
                                                                 Concat(
                                                                     [
                                                                         Text(
@@ -202,7 +195,6 @@ mod test {
                                                                                 ),
                                                                             ],
                                                                         ),
-                                                                        Nil,
                                                                         Indent {
                                                                             level: 2,
                                                                         },

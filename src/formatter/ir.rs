@@ -73,8 +73,13 @@ pub(super) fn indent(document: Document) -> Document {
 }
 
 /// Concatenates multi document
-pub(super) fn concat(documents: Vec<Document>) -> Document {
-    Document::Concat(Box::new(Concat(documents)))
+pub(super) fn concat(documents: impl IntoIterator<Item = Document>) -> Document {
+    Document::Concat(Box::new(Concat(
+        documents
+            .into_iter()
+            .filter(|doc| !matches!(doc, Document::Nil))
+            .collect(),
+    )))
 }
 
 pub(super) fn nil() -> Document {
