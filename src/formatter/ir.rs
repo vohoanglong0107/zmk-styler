@@ -73,20 +73,8 @@ pub(super) fn indent(document: Document) -> Document {
 }
 
 /// Concatenates multi document
-/// FIXME: this is O(n ^ 2) with n is the level of nested concat
-/// For example, concat(concat(concat(concat(...)))) runtime is O(n ^ 2)
 pub(super) fn concat(documents: Vec<Document>) -> Document {
-    let mut expanded_documents = Vec::new();
-    for doc in documents {
-        match doc {
-            // x <> (y <> z) = x <> y <> z
-            Document::Concat(nested_docs) => expanded_documents.extend((*nested_docs).0),
-            Document::Text(_) | Document::Indent(_) => expanded_documents.push(doc),
-            // x <> nil = x
-            Document::Nil => {}
-        }
-    }
-    Document::Concat(Box::new(Concat(expanded_documents)))
+    Document::Concat(Box::new(Concat(documents)))
 }
 
 pub(super) fn nil() -> Document {
@@ -98,26 +86,6 @@ mod test {
     use core::panic;
 
     use super::*;
-
-    #[test]
-    fn ensure_flatten_document() {
-        let doc = concat(vec![
-            text("abc".to_string()),
-            new_line(),
-            concat(vec![new_line(), text("def".to_string())]),
-            new_line(),
-            text("xyz".to_string()),
-        ]);
-        let Document::Concat(doc) = doc else {
-            panic!("This test doc must be a list texts");
-        };
-        let doc = (*doc).0;
-        for nested_doc in doc {
-            if matches!(nested_doc, Document::Concat(_)) {
-                panic!("There must be no nested concat")
-            }
-        }
-    }
 
     /// nest i (text s) = text s
     #[test]

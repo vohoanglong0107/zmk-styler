@@ -89,101 +89,160 @@ mod test {
         assert_debug_snapshot!(format_node(node), @r#"
         Concat(
             [
+                Nil,
                 Text(
                     "/",
                 ),
-                Text(
-                    " ",
-                ),
-                Text(
-                    "{",
-                ),
-                Indent {
-                    level: 1,
-                },
-                Text(
-                    "a-prop",
-                ),
-                Text(
-                    ";",
-                ),
-                Indent {
-                    level: 1,
-                },
-                Text(
-                    "behaviors",
-                ),
-                Text(
-                    " ",
-                ),
-                Text(
-                    "{",
-                ),
-                Indent {
-                    level: 2,
-                },
-                Text(
-                    "lower",
-                ),
-                Text(
-                    ":",
-                ),
-                Text(
-                    " ",
-                ),
-                Text(
-                    "lower",
-                ),
-                Text(
-                    " ",
-                ),
-                Text(
-                    "{",
-                ),
-                Indent {
-                    level: 3,
-                },
-                Text(
-                    "compatible",
-                ),
-                Text(
-                    ";",
-                ),
-                Indent {
-                    level: 3,
-                },
-                Text(
-                    "with",
-                ),
-                Text(
-                    ";",
-                ),
-                Indent {
-                    level: 2,
-                },
-                Text(
-                    "}",
-                ),
-                Text(
-                    ";",
-                ),
-                Indent {
-                    level: 1,
-                },
-                Text(
-                    "}",
-                ),
-                Text(
-                    ";",
-                ),
-                Indent {
-                    level: 0,
-                },
-                Text(
-                    "}",
-                ),
-                Text(
-                    ";",
+                Nil,
+                Concat(
+                    [
+                        Text(
+                            " ",
+                        ),
+                        Text(
+                            "{",
+                        ),
+                        Concat(
+                            [
+                                Indent {
+                                    level: 1,
+                                },
+                                Concat(
+                                    [
+                                        Text(
+                                            "a-prop",
+                                        ),
+                                        Text(
+                                            ";",
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        Concat(
+                            [
+                                Indent {
+                                    level: 1,
+                                },
+                                Concat(
+                                    [
+                                        Nil,
+                                        Text(
+                                            "behaviors",
+                                        ),
+                                        Nil,
+                                        Concat(
+                                            [
+                                                Text(
+                                                    " ",
+                                                ),
+                                                Text(
+                                                    "{",
+                                                ),
+                                                Nil,
+                                                Concat(
+                                                    [
+                                                        Indent {
+                                                            level: 2,
+                                                        },
+                                                        Concat(
+                                                            [
+                                                                Concat(
+                                                                    [
+                                                                        Text(
+                                                                            "lower",
+                                                                        ),
+                                                                        Text(
+                                                                            ":",
+                                                                        ),
+                                                                        Text(
+                                                                            " ",
+                                                                        ),
+                                                                    ],
+                                                                ),
+                                                                Text(
+                                                                    "lower",
+                                                                ),
+                                                                Nil,
+                                                                Concat(
+                                                                    [
+                                                                        Text(
+                                                                            " ",
+                                                                        ),
+                                                                        Text(
+                                                                            "{",
+                                                                        ),
+                                                                        Concat(
+                                                                            [
+                                                                                Indent {
+                                                                                    level: 3,
+                                                                                },
+                                                                                Concat(
+                                                                                    [
+                                                                                        Text(
+                                                                                            "compatible",
+                                                                                        ),
+                                                                                        Text(
+                                                                                            ";",
+                                                                                        ),
+                                                                                    ],
+                                                                                ),
+                                                                                Indent {
+                                                                                    level: 3,
+                                                                                },
+                                                                                Concat(
+                                                                                    [
+                                                                                        Text(
+                                                                                            "with",
+                                                                                        ),
+                                                                                        Text(
+                                                                                            ";",
+                                                                                        ),
+                                                                                    ],
+                                                                                ),
+                                                                            ],
+                                                                        ),
+                                                                        Nil,
+                                                                        Indent {
+                                                                            level: 2,
+                                                                        },
+                                                                        Text(
+                                                                            "}",
+                                                                        ),
+                                                                        Text(
+                                                                            ";",
+                                                                        ),
+                                                                    ],
+                                                                ),
+                                                            ],
+                                                        ),
+                                                    ],
+                                                ),
+                                                Indent {
+                                                    level: 1,
+                                                },
+                                                Text(
+                                                    "}",
+                                                ),
+                                                Text(
+                                                    ";",
+                                                ),
+                                            ],
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                        Indent {
+                            level: 0,
+                        },
+                        Text(
+                            "}",
+                        ),
+                        Text(
+                            ";",
+                        ),
+                    ],
                 ),
             ],
         )

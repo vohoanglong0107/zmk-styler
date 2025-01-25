@@ -18,13 +18,15 @@ impl Writer {
                     .unwrap();
                 format!("\n{}", " ".repeat(indent_spaces))
             }
+            // Pre-order traversal
             Document::Concat(subnodes) => {
-                let texts = subnodes
+                subnodes
                     .0
                     .into_iter()
-                    .map(|subnode| self.write(subnode))
-                    .collect::<Vec<_>>();
-                texts.join("")
+                    .fold(String::new(), |mut out, subnode| {
+                        out.push_str(self.write(subnode).as_str());
+                        out
+                    })
             }
             Document::Nil => "".to_string(),
         }
