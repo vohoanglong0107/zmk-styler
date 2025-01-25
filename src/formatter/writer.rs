@@ -1,35 +1,35 @@
 use super::{config::Config, ir::Document};
 
 pub(super) struct Writer {
+    buffer: String,
     config: Config,
 }
 
 impl Writer {
     pub(super) fn new(config: Config) -> Self {
-        Writer { config }
+        Writer {
+            buffer: String::new(),
+            config,
+        }
     }
-    pub(super) fn write(&self, node: Document) -> String {
+    pub(super) fn write(&mut self, node: Document) {
         match node {
-            Document::Text(text) => text.0,
+            Document::Text(text) => self.buffer.push_str(&text.0),
             Document::Indent(indent) => {
-                // Can't panic. Who on earth needs that much indent?
-                let indent_spaces: usize = (indent.level * self.config.indent_width)
-                    .try_into()
-                    .unwrap();
-                format!("\n{}", " ".repeat(indent_spaces))
+                self.buffer.push('\n');
+                for _ in 0..(indent.level * self.config.indent_width) {
+                    self.buffer.push(' ')
+                }
             }
             // Pre-order traversal
-            Document::Concat(subnodes) => {
-                subnodes
-                    .0
-                    .into_iter()
-                    .fold(String::new(), |mut out, subnode| {
-                        out.push_str(self.write(subnode).as_str());
-                        out
-                    })
-            }
-            Document::Nil => "".to_string(),
+            Document::Concat(subnodes) => subnodes.0.into_iter().for_each(|doc| self.write(doc)),
+
+            Document::Nil => {}
         }
+    }
+
+    pub(super) fn output(&self) -> String {
+        self.buffer.clone()
     }
 }
 
@@ -44,20 +44,22 @@ mod test {
 
     #[test]
     fn empty_new_line_does_not_indent() {
-        let writer = new_writer();
+        let mut writer = new_writer();
         let doc = indent(indent(indent(empty_new_line())));
-        assert_eq!(writer.write(doc), "\n")
+        writer.write(doc);
+        assert_eq!(writer.output(), "\n")
     }
 
     #[test]
     fn indented_newline() {
-        let writer = new_writer();
+        let mut writer = new_writer();
         let doc = concat(vec![
             text("abc"),
             indent(concat(vec![new_line(), text("xyz")])),
         ]);
+        writer.write(doc);
         assert_eq!(
-            writer.write(doc),
+            writer.output(),
             r#"abc
     xyz"#
         )
@@ -65,7 +67,7 @@ mod test {
 
     #[test]
     fn nested_concat() {
-        let writer = new_writer();
+        let mut writer = new_writer();
         let doc = concat(vec![
             concat(vec![text("abc"), text("def")]),
             indent(concat(vec![new_line(), text("ghi")])),
@@ -75,8 +77,9 @@ mod test {
                 concat(vec![text("mno"), text("prq")]),
             ]),
         ]);
+        writer.write(doc);
         assert_eq!(
-            writer.write(doc),
+            writer.output(),
             r#"abcdef
     ghi
 jklmnoprq"#
@@ -84,8 +87,6 @@ jklmnoprq"#
     }
 
     fn new_writer() -> Writer {
-        Writer {
-            config: Config::default(),
-        }
+        Writer::new(Config::default())
     }
 }
