@@ -73,7 +73,8 @@ pub(super) fn indent(document: Document) -> Document {
 }
 
 /// Concatenates multi document
-/// FIXME: this is O(n ^ 2)
+/// FIXME: this is O(n ^ 2) with n is the level of nested concat
+/// For example, concat(concat(concat(concat(...)))) runtime is O(n ^ 2)
 pub(super) fn concat(documents: Vec<Document>) -> Document {
     let mut expanded_documents = Vec::new();
     for doc in documents {
