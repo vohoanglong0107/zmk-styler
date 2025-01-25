@@ -31,8 +31,8 @@ impl Debug for Document {
     }
 }
 
-pub(super) fn text(text: String) -> Document {
-    Document::Text(Text(text))
+pub(super) fn text(text: impl ToString) -> Document {
+    Document::Text(Text(text.to_string()))
 }
 
 pub(super) fn tag(tag: &str) -> Document {
