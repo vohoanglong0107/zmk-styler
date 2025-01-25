@@ -30,3 +30,60 @@ impl Writer {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::formatter::{
+        config::Config,
+        ir::{concat, empty_new_line, indent, new_line, text},
+    };
+
+    use super::Writer;
+
+    #[test]
+    fn empty_new_line_does_not_indent() {
+        let writer = new_writer();
+        let doc = indent(indent(indent(empty_new_line())));
+        assert_eq!(writer.write(doc), "\n")
+    }
+
+    #[test]
+    fn indented_newline() {
+        let writer = new_writer();
+        let doc = concat(vec![
+            text("abc"),
+            indent(concat(vec![new_line(), text("xyz")])),
+        ]);
+        assert_eq!(
+            writer.write(doc),
+            r#"abc
+    xyz"#
+        )
+    }
+
+    #[test]
+    fn nested_concat() {
+        let writer = new_writer();
+        let doc = concat(vec![
+            concat(vec![text("abc"), text("def")]),
+            indent(concat(vec![new_line(), text("ghi")])),
+            concat(vec![
+                new_line(),
+                text("jkl"),
+                concat(vec![text("mno"), text("prq")]),
+            ]),
+        ]);
+        assert_eq!(
+            writer.write(doc),
+            r#"abcdef
+    ghi
+jklmnoprq"#
+        )
+    }
+
+    fn new_writer() -> Writer {
+        Writer {
+            config: Config::default(),
+        }
+    }
+}

@@ -98,6 +98,7 @@ mod test {
     use core::panic;
 
     use super::*;
+
     #[test]
     fn ensure_flatten_document() {
         let doc = concat(vec![
@@ -116,5 +117,35 @@ mod test {
                 panic!("There must be no nested concat")
             }
         }
+    }
+
+    /// nest i (text s) = text s
+    #[test]
+    fn nest_text_eq_text() {
+        let doc = indent(indent(indent(text("abc".to_string()))));
+        let Document::Text(doc) = doc else {
+            panic!("This test doc must be a text {:#?}", doc);
+        };
+        assert_eq!(doc.0, "abc")
+    }
+
+    /// i ‘Line‘ x = nest i line <> x
+    #[test]
+    fn nest_line_eq_nest() {
+        let doc = indent(new_line());
+        let Document::Indent(doc) = doc else {
+            panic!("This test doc must be an indent {:#?}", doc);
+        };
+        assert_eq!(doc.level, 1)
+    }
+
+    /// nest i (nest j x) = nest (i + j) x
+    #[test]
+    fn nest_line_eq_bigger_nest() {
+        let doc = indent(indent(indent(new_line())));
+        let Document::Indent(doc) = doc else {
+            panic!("This test doc must be an indent {:#?}", doc);
+        };
+        assert_eq!(doc.level, 3)
     }
 }
