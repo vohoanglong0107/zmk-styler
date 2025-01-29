@@ -1,0 +1,14 @@
+---
+source: tests/formatter.rs
+expression: out
+---
+/ {
+    a-prop;
+    interrupts = <17 0xc>;
+    behaviors {
+        lower: lower {
+            compatible;
+            with;
+        };
+    };
+};

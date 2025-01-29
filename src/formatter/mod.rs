@@ -13,7 +13,6 @@ pub(crate) fn format(node: Node) -> String {
     let config = Config::default();
     let mut writer = Writer::new(config);
     let document = format_node(node);
-    println!("{document:#?}");
     writer.write(document);
     writer.output()
 }

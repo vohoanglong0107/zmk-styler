@@ -1,0 +1,10 @@
+/ {
+    a-prop;
+    interrupts = <17 0xc>;
+    behaviors {
+        lower: lower {
+            compatible;
+            with;
+        };
+    };
+};
