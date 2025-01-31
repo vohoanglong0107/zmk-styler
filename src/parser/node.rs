@@ -69,9 +69,9 @@ fn parse_node_body(input: &str) -> IResult<&str, (Vec<Property>, Vec<Node>)> {
     ));
     let mut parser = terminated(
         delimited(
-            preceded(multispace0, tag("{")),
+            delimited(multispace0, tag("{"), multispace0),
             inner_body_parser,
-            terminated(tag("}"), multispace0),
+            delimited(multispace0, tag("}"), multispace0),
         ),
         tag(";"),
     );
@@ -344,6 +344,40 @@ mod test {
                             value: Bool,
                         },
                     ],
+                },
+            ),
+        )
+        "#
+        );
+    }
+
+    #[test]
+    fn parse_node_with_empty_body_correctly() {
+        assert_debug_snapshot!(
+            parse_node(
+                r#"/ {
+    child1 {
+    };
+};"#
+            ),
+            @r#"
+        Ok(
+            (
+                "",
+                Node {
+                    label: None,
+                    name: "/",
+                    address: None,
+                    children: [
+                        Node {
+                            label: None,
+                            name: "child1",
+                            address: None,
+                            children: [],
+                            properties: [],
+                        },
+                    ],
+                    properties: [],
                 },
             ),
         )
