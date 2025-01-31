@@ -80,7 +80,7 @@ fn parse_int_array_cell(input: &str) -> IResult<&str, ArrayCell> {
         alt((tag("0x"), tag("0X"))),
         many1(one_of("0123456789abcdefABCDEF")),
     ));
-    let oct_parser = recognize(pair(tag("0"), many1(one_of("01234567"))));
+    let oct_parser = recognize(pair(tag("0"), many0(one_of("01234567"))));
     let dec_parser = recognize(pair(
         one_of("1234567"),
         many0(one_of("0123456789abcdefABCDEF")),
@@ -146,7 +146,7 @@ mod test {
     #[test]
     fn parse_i32_array_property_correctly() {
         assert_debug_snapshot!(
-            parse_property("an-array = <1 2 3>;"),
+            parse_property("an-array = <0 1 2 3>;"),
             @r#"
         Ok(
             (
@@ -159,6 +159,9 @@ mod test {
                                 Array(
                                     ArrayValue(
                                         [
+                                            Int(
+                                                "0",
+                                            ),
                                             Int(
                                                 "1",
                                             ),
@@ -248,6 +251,20 @@ mod test {
                 "",
                 Int(
                     "0123",
+                ),
+            ),
+        )
+        "#
+        );
+
+        assert_debug_snapshot!(
+            parse_int_array_cell("0"),
+            @r#"
+        Ok(
+            (
+                "",
+                Int(
+                    "0",
                 ),
             ),
         )
