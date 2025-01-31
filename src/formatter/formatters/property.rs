@@ -1,7 +1,10 @@
 use itertools::Itertools;
 
 use crate::{
-    ast::{ArrayCell, ArrayValue, NonBoolPropertyValue, Property, PropertyValue, PropertyValues},
+    ast::{
+        ArrayCell, ArrayValue, NonBoolPropertyValue, Property, PropertyValue, PropertyValues,
+        StringValue,
+    },
     formatter::ir::{concat, nil, space, tag, text, Document},
 };
 
@@ -24,6 +27,7 @@ fn format_property_values(values: PropertyValues) -> Document {
 fn format_property_value(value: NonBoolPropertyValue) -> Document {
     match value {
         NonBoolPropertyValue::Array(array) => format_array(array),
+        NonBoolPropertyValue::String(string) => format_string(string),
         _ => todo!(),
     }
 }
@@ -42,6 +46,10 @@ fn format_cell(cell: ArrayCell) -> Document {
         ArrayCell::Int(int_cell) => text(int_cell),
         _ => todo!(),
     }
+}
+
+fn format_string(array: StringValue) -> Document {
+    concat([tag("\""), text(array), tag("\"")])
 }
 
 #[cfg(test)]
@@ -112,6 +120,53 @@ mod test {
                                         ),
                                         Text(
                                             ">",
+                                        ),
+                                    ],
+                                ),
+                            ],
+                        ),
+                    ],
+                ),
+                Text(
+                    ";",
+                ),
+            ],
+        )
+        "#)
+    }
+
+    #[test]
+    fn format_string_property() {
+        let (_, prop) = parse_property("label = \"BT_2\";").unwrap();
+        assert_debug_snapshot!(format_property(prop), @r#"
+        Concat(
+            [
+                Text(
+                    "label",
+                ),
+                Concat(
+                    [
+                        Text(
+                            " ",
+                        ),
+                        Text(
+                            "=",
+                        ),
+                        Text(
+                            " ",
+                        ),
+                        Concat(
+                            [
+                                Concat(
+                                    [
+                                        Text(
+                                            "\"",
+                                        ),
+                                        Text(
+                                            "BT_2",
+                                        ),
+                                        Text(
+                                            "\"",
                                         ),
                                     ],
                                 ),

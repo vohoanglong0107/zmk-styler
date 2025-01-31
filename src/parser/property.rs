@@ -1,6 +1,6 @@
 use nom::{
     branch::alt,
-    bytes::complete::{tag, take_while_m_n},
+    bytes::complete::{tag, take_until, take_while_m_n},
     character::complete::{multispace0, multispace1, one_of},
     combinator::{map, map_res, recognize},
     multi::{many0, many1, separated_list1},
@@ -30,12 +30,11 @@ fn parse_boolean_property(input: &str) -> IResult<&str, Property> {
 }
 
 fn parse_non_bool_property(input: &str) -> IResult<&str, Property> {
-    let values_parser = alt((parse_non_bool_property_values,));
     let mut parser = terminated(
         separated_pair(
             parse_property_name,
             delimited(multispace0, tag("="), multispace0),
-            values_parser,
+            parse_non_bool_property_values,
         ),
         tag(";"),
     );
@@ -54,7 +53,7 @@ fn parse_property_name(input: &str) -> IResult<&str, &str> {
 }
 
 fn parse_non_bool_property_values(input: &str) -> IResult<&str, PropertyValues> {
-    let value_parser = alt((parse_array_value,));
+    let value_parser = alt((parse_array_value, parse_string_value));
     let mut parser = map(
         separated_list1(delimited(multispace0, tag(","), multispace0), value_parser),
         Into::into,
@@ -92,6 +91,13 @@ fn parse_int_array_cell(input: &str) -> IResult<&str, ArrayCell> {
     parser(input)
 }
 
+fn parse_string_value(input: &str) -> IResult<&str, NonBoolPropertyValue> {
+    let mut parser = map(
+        delimited(tag("\""), take_until("\""), tag("\"")),
+        |array: &str| NonBoolPropertyValue::String(array.into()),
+    );
+    parser(input)
+}
 const VALID_PROPERTY_NAME_CHAR: &str = ",._+?#-";
 
 fn is_valid_property_name_character(c: char) -> bool {
@@ -247,5 +253,30 @@ mod test {
         )
         "#
         )
+    }
+
+    #[test]
+    fn parse_string_property_correctly() {
+        assert_debug_snapshot!(parse_property("compatible = \"zmk,behavior-tap-dance\";"), @r#"
+        Ok(
+            (
+                "",
+                Property {
+                    name: "compatible",
+                    value: Values(
+                        PropertyValues(
+                            [
+                                String(
+                                    StringValue(
+                                        "zmk,behavior-tap-dance",
+                                    ),
+                                ),
+                            ],
+                        ),
+                    ),
+                },
+            ),
+        )
+        "#)
     }
 }

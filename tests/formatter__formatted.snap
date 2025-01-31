@@ -3,12 +3,11 @@ source: tests/formatter.rs
 expression: out
 ---
 / {
-    a-prop;
-    interrupts = <17 0xc>;
     behaviors {
         lower: lower {
-            compatible;
-            with;
+            compatible = "zmk,behavior-tap-dance";
+            label = "LAYER_TAP_DANCE";
+            tapping-term-ms = <200>;
         };
     };
 };

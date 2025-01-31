@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Node {
     // Zephyr mentioned that one node can have multiple labels, but I found no document for that
@@ -80,6 +82,18 @@ pub(crate) enum ArrayCell {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct StringValue(String);
+
+impl From<&str> for StringValue {
+    fn from(value: &str) -> Self {
+        Self(value.to_string())
+    }
+}
+
+impl Display for StringValue {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct ByteStringValue(Vec<[ByteStringCharacter; 2]>);
