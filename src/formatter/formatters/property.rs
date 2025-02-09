@@ -56,12 +56,12 @@ fn format_string(array: StringValue) -> Document {
 mod test {
     use insta::assert_debug_snapshot;
 
-    use crate::parser::property::parse_property;
+    use crate::parser::{property::parse_property, Parser};
 
     use super::*;
     #[test]
     fn format_boolean_property() {
-        let (_, prop) = parse_property("hold-trigger-on-release;").unwrap();
+        let prop = parse("hold-trigger-on-release;");
         assert_debug_snapshot!(format_property(prop), @r#"
         Concat(
             [
@@ -78,7 +78,7 @@ mod test {
 
     #[test]
     fn format_i32_array_property() {
-        let (_, prop) = parse_property("arr = <1 2 3>;").unwrap();
+        let prop = parse("arr = <1 2 3>;");
         assert_debug_snapshot!(format_property(prop), @r#"
         Concat(
             [
@@ -137,7 +137,7 @@ mod test {
 
     #[test]
     fn format_string_property() {
-        let (_, prop) = parse_property("label = \"BT_2\";").unwrap();
+        let prop = parse("label = \"BT_2\";");
         assert_debug_snapshot!(format_property(prop), @r#"
         Concat(
             [
@@ -180,5 +180,10 @@ mod test {
             ],
         )
         "#)
+    }
+
+    fn parse(s: &str) -> Property {
+        let mut parser = Parser::new(s);
+        parse_property(&mut parser).unwrap()
     }
 }

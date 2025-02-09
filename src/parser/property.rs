@@ -1,107 +1,96 @@
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_until, take_while_m_n},
-    character::complete::{multispace0, multispace1, one_of},
-    combinator::{map, map_res, recognize},
-    multi::{many0, many1, separated_list1},
-    sequence::{delimited, pair, preceded, separated_pair, terminated},
-    IResult,
+use crate::{
+    ast::{ArrayCell, NonBoolPropertyValue, Property, PropertyValue, PropertyValues},
+    lexer::TokenKind,
 };
-use std::str::FromStr;
 
-use crate::ast::{ArrayCell, NonBoolPropertyValue, Property, PropertyValue, PropertyValues};
+use super::{ParseError, Parser};
 
 // TODO: parse /delete-property/ for false case
-pub(crate) fn parse_property(input: &str) -> IResult<&str, Property> {
-    let mut parser = alt((parse_non_bool_property, parse_boolean_property));
-    parser(input)
+pub(crate) fn parse_property(p: &mut Parser) -> Result<Property, ParseError> {
+    if p.nth_at(1, TokenKind::SEMICOLON) {
+        parse_boolean_property(p)
+    } else {
+        parse_non_bool_property(p)
+    }
 }
 
-fn parse_boolean_property(input: &str) -> IResult<&str, Property> {
-    let mut parser = terminated(parse_property_name, tag(";"));
-    let (rest, name) = parser(input)?;
-    Ok((
-        rest,
-        Property {
-            name: name.to_string(),
-            value: PropertyValue::Bool,
-        },
-    ))
+fn parse_boolean_property(p: &mut Parser) -> Result<Property, ParseError> {
+    let token = p.expect(TokenKind::NAME)?;
+    p.expect(TokenKind::SEMICOLON)?;
+    Ok(Property {
+        name: token.text.to_string(),
+        value: PropertyValue::Bool,
+    })
 }
 
-fn parse_non_bool_property(input: &str) -> IResult<&str, Property> {
-    let mut parser = terminated(
-        separated_pair(
-            parse_property_name,
-            delimited(multispace0, tag("="), multispace0),
-            parse_non_bool_property_values,
-        ),
-        tag(";"),
-    );
-    let (rest, (name, values)) = parser(input)?;
-    Ok((
-        rest,
-        Property {
-            name: name.to_string(),
-            value: PropertyValue::Values(values),
-        },
-    ))
+fn parse_non_bool_property(p: &mut Parser) -> Result<Property, ParseError> {
+    let name_token = p.expect(TokenKind::NAME)?;
+    p.expect(TokenKind::EQUAL)?;
+
+    let values = parse_non_bool_property_values(p)?;
+    Ok(Property {
+        name: name_token.text,
+        value: PropertyValue::Values(values),
+    })
 }
 
-fn parse_property_name(input: &str) -> IResult<&str, &str> {
-    take_while_m_n(1, 31, is_valid_property_name_character)(input)
+fn parse_non_bool_property_values(p: &mut Parser) -> Result<PropertyValues, ParseError> {
+    let mut values = Vec::new();
+
+    let first_value = parse_non_bool_property_value(p)?;
+    values.push(first_value);
+
+    loop {
+        if p.nth_at(0, TokenKind::SEMICOLON) {
+            break;
+        }
+        p.expect(TokenKind::COMMA)?;
+        if is_at_non_bool_property_value(p) {
+            let value = parse_non_bool_property_value(p)?;
+            values.push(value)
+        } else {
+            break;
+        }
+    }
+    p.expect(TokenKind::SEMICOLON)?;
+    Ok(values.into())
 }
 
-fn parse_non_bool_property_values(input: &str) -> IResult<&str, PropertyValues> {
-    let value_parser = alt((parse_array_value, parse_string_value));
-    let mut parser = map(
-        separated_list1(delimited(multispace0, tag(","), multispace0), value_parser),
-        Into::into,
-    );
-    parser(input)
+fn is_at_non_bool_property_value(p: &Parser) -> bool {
+    p.nth_at(0, TokenKind::L_ANGLE) || p.nth_at(0, TokenKind::STRING)
 }
 
-fn parse_array_value(input: &str) -> IResult<&str, NonBoolPropertyValue> {
-    let array_cell_parser = alt((parse_int_array_cell,));
-    let mut parser = map(
-        delimited(
-            tag("<"),
-            separated_list1(multispace1, array_cell_parser),
-            tag(">"),
-        ),
-        |array| NonBoolPropertyValue::Array(array.into()),
-    );
-    parser(input)
+fn parse_non_bool_property_value(p: &mut Parser) -> Result<NonBoolPropertyValue, ParseError> {
+    let current_token = p.nth(0).ok_or(ParseError::new(format!(
+        "Expected {} or {}, but found EOF",
+        TokenKind::L_ANGLE,
+        TokenKind::STRING
+    )))?;
+    match current_token.kind {
+        TokenKind::L_ANGLE => parse_array_value(p),
+        TokenKind::STRING => parse_string_value(p),
+        _ => Err(ParseError::new(format!(
+            "Expected {} or {}, but found {}",
+            TokenKind::L_ANGLE,
+            TokenKind::STRING,
+            current_token.kind
+        ))),
+    }
 }
 
-// https://learn.microsoft.com/en-us/cpp/c-language/c-integer-constants?view=msvc-170
-fn parse_int_array_cell(input: &str) -> IResult<&str, ArrayCell> {
-    let hex_parser = recognize(pair(
-        alt((tag("0x"), tag("0X"))),
-        many1(one_of("0123456789abcdefABCDEF")),
-    ));
-    let oct_parser = recognize(pair(tag("0"), many0(one_of("01234567"))));
-    let dec_parser = recognize(pair(
-        one_of("1234567"),
-        many0(one_of("0123456789abcdefABCDEF")),
-    ));
-    let mut parser = map(alt((hex_parser, oct_parser, dec_parser)), |val: &str| {
-        ArrayCell::Int(val.to_string())
-    });
-    parser(input)
+fn parse_array_value(p: &mut Parser) -> Result<NonBoolPropertyValue, ParseError> {
+    let mut array_value = Vec::new();
+    p.expect(TokenKind::L_ANGLE)?;
+    while let Ok(token) = p.expect(TokenKind::INT) {
+        array_value.push(ArrayCell::Int(token.text));
+    }
+    p.expect(TokenKind::R_ANGLE)?;
+    Ok(NonBoolPropertyValue::Array(array_value.into()))
 }
 
-fn parse_string_value(input: &str) -> IResult<&str, NonBoolPropertyValue> {
-    let mut parser = map(
-        delimited(tag("\""), take_until("\""), tag("\"")),
-        |array: &str| NonBoolPropertyValue::String(array.into()),
-    );
-    parser(input)
-}
-const VALID_PROPERTY_NAME_CHAR: &str = ",._+?#-";
-
-fn is_valid_property_name_character(c: char) -> bool {
-    c.is_alphanumeric() || VALID_PROPERTY_NAME_CHAR.contains(c)
+fn parse_string_value(p: &mut Parser) -> Result<NonBoolPropertyValue, ParseError> {
+    let token = p.expect(TokenKind::STRING)?;
+    Ok(NonBoolPropertyValue::String(token.text.into()))
 }
 
 #[cfg(test)]
@@ -113,160 +102,51 @@ mod test {
     #[test]
     fn parse_boolean_property_correctly() {
         assert_debug_snapshot!(
-            parse_property("hold-trigger-on-release;"),
+            parse("hold-trigger-on-release;"),
             @r#"
         Ok(
-            (
-                "",
-                Property {
-                    name: "hold-trigger-on-release",
-                    value: Bool,
-                },
-            ),
+            Property {
+                name: "hold-trigger-on-release",
+                value: Bool,
+            },
         )
         "#
         )
-    }
-
-    #[test]
-    fn parse_property_name_correctly() {
-        assert_debug_snapshot!(
-            parse_property_name("ibm,ppc-interrupt-server#s"),
-            @r#"
-        Ok(
-            (
-                "",
-                "ibm,ppc-interrupt-server#s",
-            ),
-        )
-        "#
-        );
     }
 
     #[test]
     fn parse_i32_array_property_correctly() {
         assert_debug_snapshot!(
-            parse_property("an-array = <0 1 2 3>;"),
+            parse("an-array = <0 1 2 3>;"),
             @r#"
         Ok(
-            (
-                "",
-                Property {
-                    name: "an-array",
-                    value: Values(
-                        PropertyValues(
-                            [
-                                Array(
-                                    ArrayValue(
-                                        [
-                                            Int(
-                                                "0",
-                                            ),
-                                            Int(
-                                                "1",
-                                            ),
-                                            Int(
-                                                "2",
-                                            ),
-                                            Int(
-                                                "3",
-                                            ),
-                                        ],
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ),
-                },
-            ),
-        )
-        "#
-        )
-    }
-
-    #[test]
-    fn parse_i32_array_value_correctly() {
-        assert_debug_snapshot!(
-            parse_array_value("<1 20 330>"),
-            @r#"
-        Ok(
-            (
-                "",
-                Array(
-                    ArrayValue(
+            Property {
+                name: "an-array",
+                value: Values(
+                    PropertyValues(
                         [
-                            Int(
-                                "1",
-                            ),
-                            Int(
-                                "20",
-                            ),
-                            Int(
-                                "330",
+                            Array(
+                                ArrayValue(
+                                    [
+                                        Int(
+                                            "0",
+                                        ),
+                                        Int(
+                                            "1",
+                                        ),
+                                        Int(
+                                            "2",
+                                        ),
+                                        Int(
+                                            "3",
+                                        ),
+                                    ],
+                                ),
                             ),
                         ],
                     ),
                 ),
-            ),
-        )
-        "#
-        )
-    }
-
-    #[test]
-    fn parse_i32_array_cell_correctly() {
-        assert_debug_snapshot!(
-            parse_int_array_cell("123"),
-            @r#"
-        Ok(
-            (
-                "",
-                Int(
-                    "123",
-                ),
-            ),
-        )
-        "#
-        );
-
-        assert_debug_snapshot!(
-            parse_int_array_cell("0x123cf"),
-            @r#"
-        Ok(
-            (
-                "",
-                Int(
-                    "0x123cf",
-                ),
-            ),
-        )
-        "#
-        );
-
-        assert_debug_snapshot!(
-            parse_int_array_cell("0123"),
-            @r#"
-        Ok(
-            (
-                "",
-                Int(
-                    "0123",
-                ),
-            ),
-        )
-        "#
-        );
-
-        assert_debug_snapshot!(
-            parse_int_array_cell("0"),
-            @r#"
-        Ok(
-            (
-                "",
-                Int(
-                    "0",
-                ),
-            ),
+            },
         )
         "#
         )
@@ -274,26 +154,31 @@ mod test {
 
     #[test]
     fn parse_string_property_correctly() {
-        assert_debug_snapshot!(parse_property("compatible = \"zmk,behavior-tap-dance\";"), @r#"
+        assert_debug_snapshot!(
+            parse(r#"compatible = "zmk,behavior-tap-dance";"#),
+            @r#"
         Ok(
-            (
-                "",
-                Property {
-                    name: "compatible",
-                    value: Values(
-                        PropertyValues(
-                            [
-                                String(
-                                    StringValue(
-                                        "zmk,behavior-tap-dance",
-                                    ),
+            Property {
+                name: "compatible",
+                value: Values(
+                    PropertyValues(
+                        [
+                            String(
+                                StringValue(
+                                    "zmk,behavior-tap-dance",
                                 ),
-                            ],
-                        ),
+                            ),
+                        ],
                     ),
-                },
-            ),
+                ),
+            },
         )
-        "#)
+        "#
+        )
+    }
+
+    fn parse(s: &str) -> Result<Property, ParseError> {
+        let mut parser = Parser::new(s);
+        parse_property(&mut parser)
     }
 }

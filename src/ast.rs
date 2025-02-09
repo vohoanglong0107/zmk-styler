@@ -5,8 +5,8 @@ pub(crate) struct Node {
     // Zephyr mentioned that one node can have multiple labels, but I found no document for that
     // ref: https://docs.zephyrproject.org/latest/build/dts/intro-syntax-structure.html#nodes
     pub(crate) label: Option<String>,
-    pub(crate) name: String,
-    pub(crate) address: Option<String>,
+    // name@address, or "/" for root node
+    pub(crate) identifier: String,
     pub(crate) children: Vec<Node>,
     pub(crate) properties: Vec<Property>,
 }
@@ -86,6 +86,12 @@ pub(crate) struct StringValue(String);
 impl From<&str> for StringValue {
     fn from(value: &str) -> Self {
         Self(value.to_string())
+    }
+}
+
+impl From<String> for StringValue {
+    fn from(value: String) -> Self {
+        Self(value)
     }
 }
 

@@ -1,5 +1,6 @@
 mod ast;
 mod formatter;
+mod lexer;
 mod parser;
 use std::{error::Error, fs};
 

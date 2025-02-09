@@ -1,115 +1,84 @@
-use nom::{
-    branch::alt,
-    bytes::complete::{tag, take_while1, take_while_m_n},
-    character::complete::{anychar, multispace0},
-    combinator::{cut, opt, verify},
-    multi::many0,
-    sequence::{delimited, pair, preceded, terminated, tuple},
-    IResult,
+use crate::{
+    ast::{Node, Property},
+    lexer::TokenKind,
 };
 
-use crate::ast::{Node, Property};
+use super::{property::parse_property, ParseError, Parser};
 
-use super::property::parse_property;
-
-pub(crate) fn parse_node(input: &str) -> IResult<&str, Node> {
-    let mut parser = tuple((
-        opt(terminated(parse_label, multispace0)),
-        alt((parse_root_node, parse_node_name)),
-        opt(parse_address),
-        // Todo: remove terminated after handling parsing multiple nodes in a file
-        terminated(parse_node_body, multispace0),
-    ));
-    let (rest, (label, name, address, (properties, children))) = parser(input)?;
-    Ok((
-        rest,
-        Node {
-            label: label.map(|label| label.to_string()),
-            name,
-            address: address.map(|address| address.to_string()),
-            children,
-            properties,
-        },
-    ))
+pub(crate) fn parse_node(p: &mut Parser) -> Result<Node, ParseError> {
+    let label = parse_label(p)?;
+    let identifier = parse_node_identifier(p)?;
+    let (properties, children) = parse_node_body(p)?;
+    Ok(Node {
+        label,
+        identifier,
+        children,
+        properties,
+    })
 }
 
-fn parse_label(input: &str) -> IResult<&str, &str> {
-    let mut parser = terminated(take_while_m_n(1, 31, is_valid_label_character), tag(":"));
-    parser(input)
+fn parse_label(p: &mut Parser) -> Result<Option<String>, ParseError> {
+    if p.nth_at(1, TokenKind::COLON) {
+        let token = p.expect(TokenKind::NAME)?;
+        p.expect(TokenKind::COLON)?;
+        Ok(Some(token.text))
+    } else {
+        Ok(None)
+    }
 }
 
-fn parse_node_name(input: &str) -> IResult<&str, String> {
-    let first_character_parser = verify(anychar, |c| c.is_alphabetic());
-    let rest_node_name = take_while_m_n(0, 30, is_valid_node_name_character);
-    let mut parser = pair(first_character_parser, rest_node_name);
-    let (rest, (first_character, rest_node_name)) = parser(input)?;
-
-    Ok((rest, String::from(first_character) + rest_node_name))
+fn parse_node_identifier(p: &mut Parser) -> Result<String, ParseError> {
+    let identifier = if p.nth_at(0, TokenKind::ROOT) {
+        let root_token = p.expect(TokenKind::ROOT)?;
+        root_token.text
+    } else {
+        let name = p.expect(TokenKind::NAME)?;
+        if p.nth_at(0, TokenKind::AT) {
+            p.expect(TokenKind::AT)?;
+            let address = if p.nth_at(0, TokenKind::INT) {
+                p.expect(TokenKind::INT)?
+            } else {
+                p.expect(TokenKind::NAME)?
+            };
+            format!("{}@{}", name.text, address.text)
+        } else {
+            name.text
+        }
+    };
+    Ok(identifier)
 }
 
-fn parse_root_node(input: &str) -> IResult<&str, String> {
-    let parser = tag("/");
-    let (rest, root) = parser(input)?;
-    Ok((rest, root.to_string()))
-}
-
-fn parse_address(input: &str) -> IResult<&str, &str> {
-    let mut parser = preceded(tag("@"), cut(take_while1(is_valid_node_name_character)));
-    parser(input)
-}
-
-fn parse_node_body(input: &str) -> IResult<&str, (Vec<Property>, Vec<Node>)> {
-    let inner_body_parser = many0(delimited(
-        multispace0,
-        alt((
-            parse_node_body_node_definition,
-            parse_node_body_property_definition,
-        )),
-        multispace0,
-    ));
-    let mut parser = terminated(
-        delimited(
-            delimited(multispace0, tag("{"), multispace0),
-            inner_body_parser,
-            delimited(multispace0, tag("}"), multispace0),
-        ),
-        tag(";"),
-    );
-    let (rest, body) = parser(input)?;
+fn parse_node_body(p: &mut Parser) -> Result<(Vec<Property>, Vec<Node>), ParseError> {
+    p.expect(TokenKind::L_CURLY)?;
     let mut children = Vec::new();
     let mut properties = Vec::new();
-    for definition in body {
-        match definition {
-            NodeBodyDefinition::Node(node) => children.push(node),
-            NodeBodyDefinition::Property(property) => properties.push(property),
+    loop {
+        if is_at_node_property(p) {
+            let property = parse_property(p)?;
+            properties.push(property)
+        } else if is_at_child_node(p) {
+            let node = parse_node(p)?;
+            children.push(node)
+        } else if p.nth_at(0, TokenKind::R_CURLY) {
+            break;
+        } else {
+            return Err(ParseError::new(
+                "Expected a property, a child node or a closing brace".to_string(),
+            ));
         }
     }
-    Ok((rest, (properties, children)))
+    p.expect(TokenKind::R_CURLY)?;
+    p.expect(TokenKind::SEMICOLON)?;
+    Ok((properties, children))
 }
 
-enum NodeBodyDefinition {
-    Node(Node),
-    Property(Property),
+fn is_at_node_property(p: &Parser) -> bool {
+    p.nth_at(0, TokenKind::NAME)
+        && (p.nth_at(1, TokenKind::SEMICOLON) || p.nth_at(1, TokenKind::EQUAL))
 }
 
-fn parse_node_body_node_definition(input: &str) -> IResult<&str, NodeBodyDefinition> {
-    let (rest, node) = parse_node(input)?;
-    Ok((rest, NodeBodyDefinition::Node(node)))
-}
-
-fn parse_node_body_property_definition(input: &str) -> IResult<&str, NodeBodyDefinition> {
-    let (rest, property) = parse_property(input)?;
-    Ok((rest, NodeBodyDefinition::Property(property)))
-}
-
-const VALID_NODE_NAME_CHAR: &str = ",._+-";
-
-fn is_valid_node_name_character(c: char) -> bool {
-    c.is_alphanumeric() || VALID_NODE_NAME_CHAR.contains(c)
-}
-
-fn is_valid_label_character(c: char) -> bool {
-    c.is_alphanumeric() || c == '_'
+fn is_at_child_node(p: &Parser) -> bool {
+    p.nth_at(0, TokenKind::NAME) || p.nth_at(0, TokenKind::ROOT)
 }
 
 #[cfg(test)]
@@ -120,18 +89,14 @@ mod test {
 
     #[test]
     fn parse_node_correctly() {
-        assert_debug_snapshot!(parse_node("node {};"), @r#"
+        assert_debug_snapshot!(parse("node {};"), @r#"
         Ok(
-            (
-                "",
-                Node {
-                    label: None,
-                    name: "node",
-                    address: None,
-                    children: [],
-                    properties: [],
-                },
-            ),
+            Node {
+                label: None,
+                identifier: "node",
+                children: [],
+                properties: [],
+            },
         )
         "#);
     }
@@ -139,19 +104,15 @@ mod test {
     #[test]
     fn parse_root_node_correctly() {
         assert_debug_snapshot!(
-            parse_node("/ {};"),
+            parse("/ {};"),
             @r#"
         Ok(
-            (
-                "",
-                Node {
-                    label: None,
-                    name: "/",
-                    address: None,
-                    children: [],
-                    properties: [],
-                },
-            ),
+            Node {
+                label: None,
+                identifier: "/",
+                children: [],
+                properties: [],
+            },
         )
         "#
         );
@@ -160,21 +121,17 @@ mod test {
     #[test]
     fn parse_node_with_label_correctly() {
         assert_debug_snapshot!(
-            parse_node("label: node {};"),
+            parse("label: node {};"),
             @r#"
         Ok(
-            (
-                "",
-                Node {
-                    label: Some(
-                        "label",
-                    ),
-                    name: "node",
-                    address: None,
-                    children: [],
-                    properties: [],
-                },
-            ),
+            Node {
+                label: Some(
+                    "label",
+                ),
+                identifier: "node",
+                children: [],
+                properties: [],
+            },
         )
         "#
         );
@@ -183,23 +140,17 @@ mod test {
     #[test]
     fn parse_node_with_address_correctly() {
         assert_debug_snapshot!(
-            parse_node("label: node@12 {};"),
+            parse("label: node@12 {};"),
             @r#"
         Ok(
-            (
-                "",
-                Node {
-                    label: Some(
-                        "label",
-                    ),
-                    name: "node",
-                    address: Some(
-                        "12",
-                    ),
-                    children: [],
-                    properties: [],
-                },
-            ),
+            Node {
+                label: Some(
+                    "label",
+                ),
+                identifier: "node@12",
+                children: [],
+                properties: [],
+            },
         )
         "#
         );
@@ -207,13 +158,13 @@ mod test {
 
     #[test]
     fn parse_node_with_empty_address_fail() {
-        assert!(parse_node("node@ {};").is_err());
+        assert!(parse("node@ {};").is_err());
     }
 
     #[test]
     fn parse_node_with_children_correctly() {
         assert_debug_snapshot!(
-            parse_node(
+            parse(
                 r#"node {
     child1 {};
     child2 {};
@@ -221,31 +172,25 @@ mod test {
             ),
             @r#"
         Ok(
-            (
-                "",
-                Node {
-                    label: None,
-                    name: "node",
-                    address: None,
-                    children: [
-                        Node {
-                            label: None,
-                            name: "child1",
-                            address: None,
-                            children: [],
-                            properties: [],
-                        },
-                        Node {
-                            label: None,
-                            name: "child2",
-                            address: None,
-                            children: [],
-                            properties: [],
-                        },
-                    ],
-                    properties: [],
-                },
-            ),
+            Node {
+                label: None,
+                identifier: "node",
+                children: [
+                    Node {
+                        label: None,
+                        identifier: "child1",
+                        children: [],
+                        properties: [],
+                    },
+                    Node {
+                        label: None,
+                        identifier: "child2",
+                        children: [],
+                        properties: [],
+                    },
+                ],
+                properties: [],
+            },
         )
         "#
         );
@@ -254,7 +199,7 @@ mod test {
     #[test]
     fn parse_node_with_nested_children_correctly() {
         assert_debug_snapshot!(
-            parse_node(
+            parse(
                 r#"node {
     label1: child1 {};
     label2: child2@address2 {
@@ -264,47 +209,38 @@ mod test {
             ),
             @r#"
         Ok(
-            (
-                "",
-                Node {
-                    label: None,
-                    name: "node",
-                    address: None,
-                    children: [
-                        Node {
-                            label: Some(
-                                "label1",
-                            ),
-                            name: "child1",
-                            address: None,
-                            children: [],
-                            properties: [],
-                        },
-                        Node {
-                            label: Some(
-                                "label2",
-                            ),
-                            name: "child2",
-                            address: Some(
-                                "address2",
-                            ),
-                            children: [
-                                Node {
-                                    label: Some(
-                                        "label21",
-                                    ),
-                                    name: "child21",
-                                    address: None,
-                                    children: [],
-                                    properties: [],
-                                },
-                            ],
-                            properties: [],
-                        },
-                    ],
-                    properties: [],
-                },
-            ),
+            Node {
+                label: None,
+                identifier: "node",
+                children: [
+                    Node {
+                        label: Some(
+                            "label1",
+                        ),
+                        identifier: "child1",
+                        children: [],
+                        properties: [],
+                    },
+                    Node {
+                        label: Some(
+                            "label2",
+                        ),
+                        identifier: "child2@address2",
+                        children: [
+                            Node {
+                                label: Some(
+                                    "label21",
+                                ),
+                                identifier: "child21",
+                                children: [],
+                                properties: [],
+                            },
+                        ],
+                        properties: [],
+                    },
+                ],
+                properties: [],
+            },
         )
         "#
         );
@@ -313,75 +249,58 @@ mod test {
     #[test]
     fn parse_node_with_properties_correctly() {
         assert_debug_snapshot!(
-            parse_node(
+            parse(
                 r#"node {
     property-one;
-    label1: child1 {};
-};"#
-            ),
-            @r#"
-        Ok(
-            (
-                "",
-                Node {
-                    label: None,
-                    name: "node",
-                    address: None,
-                    children: [
-                        Node {
-                            label: Some(
-                                "label1",
-                            ),
-                            name: "child1",
-                            address: None,
-                            children: [],
-                            properties: [],
-                        },
-                    ],
-                    properties: [
-                        Property {
-                            name: "property-one",
-                            value: Bool,
-                        },
-                    ],
-                },
-            ),
-        )
-        "#
-        );
-    }
-
-    #[test]
-    fn parse_node_with_empty_body_correctly() {
-        assert_debug_snapshot!(
-            parse_node(
-                r#"/ {
-    child1 {
+    label1: child1 {
+        property-two = "xyg";
     };
 };"#
             ),
             @r#"
         Ok(
-            (
-                "",
-                Node {
-                    label: None,
-                    name: "/",
-                    address: None,
-                    children: [
-                        Node {
-                            label: None,
-                            name: "child1",
-                            address: None,
-                            children: [],
-                            properties: [],
-                        },
-                    ],
-                    properties: [],
-                },
-            ),
+            Node {
+                label: None,
+                identifier: "node",
+                children: [
+                    Node {
+                        label: Some(
+                            "label1",
+                        ),
+                        identifier: "child1",
+                        children: [],
+                        properties: [
+                            Property {
+                                name: "property-two",
+                                value: Values(
+                                    PropertyValues(
+                                        [
+                                            String(
+                                                StringValue(
+                                                    "xyg",
+                                                ),
+                                            ),
+                                        ],
+                                    ),
+                                ),
+                            },
+                        ],
+                    },
+                ],
+                properties: [
+                    Property {
+                        name: "property-one",
+                        value: Bool,
+                    },
+                ],
+            },
         )
         "#
         );
+    }
+
+    fn parse(input: &str) -> Result<Node, ParseError> {
+        let mut parser = Parser::new(input);
+        parse_node(&mut parser)
     }
 }

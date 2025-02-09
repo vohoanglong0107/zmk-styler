@@ -8,8 +8,7 @@ use super::property::format_property;
 pub(crate) fn format_node(node: Node) -> Document {
     concat(vec![
         format_label(node.label),
-        text(node.name),
-        format_address(node.address),
+        text(node.identifier),
         format_node_body(node.properties, node.children),
     ])
 }
@@ -17,13 +16,6 @@ pub(crate) fn format_node(node: Node) -> Document {
 fn format_label(label: Option<String>) -> Document {
     match label {
         Some(label) => concat(vec![text(label), tag(":"), space()]),
-        None => nil(),
-    }
-}
-
-fn format_address(address: Option<String>) -> Document {
-    match address {
-        Some(address) => concat(vec![tag("@"), text(address)]),
         None => nil(),
     }
 }
@@ -69,12 +61,12 @@ fn format_children(nodes: Vec<Node>) -> Document {
 mod test {
     use insta::assert_debug_snapshot;
 
-    use crate::parser::node::parse_node;
+    use crate::parser::{node::parse_node, Parser};
 
     use super::*;
     #[test]
     fn format_node_correctly() {
-        let node = unwraped_parse_node(
+        let node = parse(
             r#"/ {
     a-prop;
     behaviors {
@@ -241,8 +233,9 @@ mod test {
         "#);
     }
 
-    fn unwraped_parse_node(input: &str) -> Node {
-        let (_, node) = parse_node(input).unwrap();
-        node
+    fn parse(input: &str) -> Node {
+        let mut parser = Parser::new(input);
+
+        parse_node(&mut parser).unwrap()
     }
 }
