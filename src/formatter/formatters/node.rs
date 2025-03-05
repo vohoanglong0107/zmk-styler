@@ -1,241 +1,60 @@
 use crate::{
-    ast::{Node, Property},
-    formatter::ir::{concat, indent, new_line, nil, space, tag, text, Document},
+    ast::{Identifier, Label, NodeBody, NodeBodyEntry, NodeDefinition, PropertyDefinition},
+    formatter::{Format, Formatter},
 };
 
 use super::property::format_property;
 
-pub(crate) fn format_node(node: Node) -> Document {
-    concat(vec![
-        format_label(node.label),
-        text(node.identifier),
-        format_node_body(node.properties, node.children),
+pub(crate) fn format_node(node: NodeDefinition, f: &Formatter) -> Format {
+    f.list([
+        format_label(node.label, f),
+        format_identifier(node.identifier, f),
+        format_node_body(node.body, f),
     ])
 }
 
-fn format_label(label: Option<String>) -> Document {
+fn format_label(label: Option<Label>, f: &Formatter) -> Format {
     match label {
-        Some(label) => concat(vec![text(label), tag(":"), space()]),
-        None => nil(),
+        // TODO:: format label text and ":" separately to prevent comments
+        // and whitespaces in between
+        Some(label) => f.pair(f.text(label), f.space()),
+        None => f.nil(),
     }
 }
 
-fn format_node_body(properties: Vec<Property>, children: Vec<Node>) -> Document {
-    let multiline = !properties.is_empty() || !children.is_empty();
+fn format_identifier(identifier: Identifier, f: &Formatter) -> Format {
+    match identifier {
+        Identifier::Root(_) => f.tag("/"),
+        Identifier::Other(identifier) => match identifier.address {
+            Some(address) => f.list([f.text(identifier.name), f.tag("@"), f.text(address)]),
+            None => f.text(identifier.name),
+        },
+    }
+}
 
-    concat(vec![
-        space(),
-        tag("{"),
-        format_properties(properties),
-        format_children(children),
-        if multiline { new_line() } else { nil() },
-        tag("}"),
-        tag(";"),
+fn format_node_body(body: NodeBody, f: &Formatter) -> Format {
+    let multiline = !body.entries.is_empty();
+
+    f.list([
+        f.space(),
+        f.tag("{"),
+        if multiline {
+            f.indent(format_node_body_entries(body.entries, f))
+        } else {
+            f.nil()
+        },
+        if multiline { f.new_line() } else { f.nil() },
+        f.tag("}"),
+        f.tag(";"),
     ])
 }
 
-fn format_properties(properties: Vec<Property>) -> Document {
-    if properties.is_empty() {
-        return nil();
-    }
-    let props = properties
-        .into_iter()
-        .flat_map(|prop| [new_line(), format_property(prop)]);
-    indent(concat(props))
-}
-
-fn format_children(nodes: Vec<Node>) -> Document {
-    if nodes.is_empty() {
-        return nil();
-    }
-    let mut children = Vec::new();
-    children.extend(
-        nodes
-            .into_iter()
-            .flat_map(|child| vec![new_line(), format_node(child)]),
-    );
-    indent(concat(children))
-}
-
-#[cfg(test)]
-mod test {
-    use insta::assert_debug_snapshot;
-
-    use crate::parser::{node::parse_node, Parser};
-
-    use super::*;
-    #[test]
-    fn format_node_correctly() {
-        let node = parse(
-            r#"/ {
-    a-prop;
-    behaviors {
-        lower: lower {
-            compatible;
-            with;
-        };
-    };
-};"#,
-        );
-        assert_debug_snapshot!(format_node(node), @r#"
-        Concat(
-            [
-                Text(
-                    "/",
-                ),
-                Concat(
-                    [
-                        Text(
-                            " ",
-                        ),
-                        Text(
-                            "{",
-                        ),
-                        Concat(
-                            [
-                                Indent {
-                                    level: 1,
-                                },
-                                Concat(
-                                    [
-                                        Text(
-                                            "a-prop",
-                                        ),
-                                        Text(
-                                            ";",
-                                        ),
-                                    ],
-                                ),
-                            ],
-                        ),
-                        Concat(
-                            [
-                                Indent {
-                                    level: 1,
-                                },
-                                Concat(
-                                    [
-                                        Text(
-                                            "behaviors",
-                                        ),
-                                        Concat(
-                                            [
-                                                Text(
-                                                    " ",
-                                                ),
-                                                Text(
-                                                    "{",
-                                                ),
-                                                Concat(
-                                                    [
-                                                        Indent {
-                                                            level: 2,
-                                                        },
-                                                        Concat(
-                                                            [
-                                                                Concat(
-                                                                    [
-                                                                        Text(
-                                                                            "lower",
-                                                                        ),
-                                                                        Text(
-                                                                            ":",
-                                                                        ),
-                                                                        Text(
-                                                                            " ",
-                                                                        ),
-                                                                    ],
-                                                                ),
-                                                                Text(
-                                                                    "lower",
-                                                                ),
-                                                                Concat(
-                                                                    [
-                                                                        Text(
-                                                                            " ",
-                                                                        ),
-                                                                        Text(
-                                                                            "{",
-                                                                        ),
-                                                                        Concat(
-                                                                            [
-                                                                                Indent {
-                                                                                    level: 3,
-                                                                                },
-                                                                                Concat(
-                                                                                    [
-                                                                                        Text(
-                                                                                            "compatible",
-                                                                                        ),
-                                                                                        Text(
-                                                                                            ";",
-                                                                                        ),
-                                                                                    ],
-                                                                                ),
-                                                                                Indent {
-                                                                                    level: 3,
-                                                                                },
-                                                                                Concat(
-                                                                                    [
-                                                                                        Text(
-                                                                                            "with",
-                                                                                        ),
-                                                                                        Text(
-                                                                                            ";",
-                                                                                        ),
-                                                                                    ],
-                                                                                ),
-                                                                            ],
-                                                                        ),
-                                                                        Indent {
-                                                                            level: 2,
-                                                                        },
-                                                                        Text(
-                                                                            "}",
-                                                                        ),
-                                                                        Text(
-                                                                            ";",
-                                                                        ),
-                                                                    ],
-                                                                ),
-                                                            ],
-                                                        ),
-                                                    ],
-                                                ),
-                                                Indent {
-                                                    level: 1,
-                                                },
-                                                Text(
-                                                    "}",
-                                                ),
-                                                Text(
-                                                    ";",
-                                                ),
-                                            ],
-                                        ),
-                                    ],
-                                ),
-                            ],
-                        ),
-                        Indent {
-                            level: 0,
-                        },
-                        Text(
-                            "}",
-                        ),
-                        Text(
-                            ";",
-                        ),
-                    ],
-                ),
-            ],
-        )
-        "#);
-    }
-
-    fn parse(input: &str) -> Node {
-        let mut parser = Parser::new(input);
-
-        parse_node(&mut parser).unwrap()
-    }
+fn format_node_body_entries(entries: Vec<NodeBodyEntry>, f: &Formatter) -> Format {
+    f.separated_list(
+        entries.into_iter().map(|entry| match entry {
+            NodeBodyEntry::Node(node) => format_node(node, f),
+            NodeBodyEntry::Property(property) => format_property(property, f),
+        }),
+        f.new_line(),
+    )
 }

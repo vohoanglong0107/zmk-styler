@@ -1,26 +1,45 @@
 use std::fmt::Debug;
 
 /// Text Verbatim
-#[derive(Debug, Clone)]
-pub(super) struct Text(pub String);
+#[derive(Clone)]
+pub(crate) struct Text(pub String);
 /// Indented block of text
-#[derive(Debug, Clone)]
-pub(super) struct Indent {
+#[derive(Clone)]
+pub(crate) struct Indent {
     pub(super) level: u32,
 }
 /// Concatination of Document nodes
-#[derive(Debug, Clone)]
-pub(super) struct Concat(pub Vec<Document>);
+#[derive(Clone)]
+pub(crate) struct Concat(pub Vec<Format>);
 
 #[derive(Clone)]
-pub(super) enum Document {
+pub(crate) enum Format {
     Text(Text),
     Indent(Box<Indent>),
     Concat(Box<Concat>),
     Nil,
 }
 
-impl Debug for Document {
+impl Debug for Text {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Text({})", self.0)
+    }
+}
+
+impl Debug for Indent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Indent({})", self.level)
+    }
+}
+
+impl Debug for Concat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Concat ")?;
+        f.debug_list().entries(self.0.iter()).finish()
+    }
+}
+
+impl Debug for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Text(arg0) => write!(f, "{:#?}", arg0),
@@ -31,59 +50,45 @@ impl Debug for Document {
     }
 }
 
-pub(super) fn text(text: impl ToString) -> Document {
-    Document::Text(Text(text.to_string()))
+pub(super) fn text(text: impl ToString) -> Format {
+    Format::Text(Text(text.to_string()))
 }
 
-pub(super) fn tag(tag: &str) -> Document {
-    Document::Text(Text(tag.to_string()))
+pub(super) fn new_line() -> Format {
+    Format::Indent(Box::new(Indent { level: 0 }))
 }
 
-pub(super) fn space() -> Document {
-    tag(" ")
-}
-
-/// New line without indent
-pub(super) fn empty_new_line() -> Document {
-    tag("\n")
-}
-
-/// New line with indent
-pub(super) fn new_line() -> Document {
-    Document::Indent(Box::new(Indent { level: 0 }))
-}
-
-/// Indent a document
-pub(super) fn indent(document: Document) -> Document {
+/// Increases the indent level of the specified block
+pub(super) fn indent(document: Format) -> Format {
     match document {
         // nest i (text s) = text s
-        Document::Text(text) => Document::Text(text),
+        Format::Text(text) => Format::Text(text),
         // nest i (nest j x) = nest (i + j) x
-        Document::Indent(indented) => Document::Indent(Box::new(Indent {
+        Format::Indent(indented) => Format::Indent(Box::new(Indent {
             level: indented.level + 1,
         })),
         // nest i (x <> y) = nest i x <> nest i y
-        Document::Concat(docs) => {
+        Format::Concat(docs) => {
             let docs = docs.0.into_iter().map(indent).collect();
-            Document::Concat(Box::new(Concat(docs)))
+            Format::Concat(Box::new(Concat(docs)))
         }
         // nest i nil = nil
-        Document::Nil => Document::Nil,
+        Format::Nil => Format::Nil,
     }
 }
 
 /// Concatenates multi document
-pub(super) fn concat(documents: impl IntoIterator<Item = Document>) -> Document {
-    Document::Concat(Box::new(Concat(
+pub(super) fn concat(documents: impl IntoIterator<Item = Format>) -> Format {
+    Format::Concat(Box::new(Concat(
         documents
             .into_iter()
-            .filter(|doc| !matches!(doc, Document::Nil))
+            .filter(|doc| !matches!(doc, Format::Nil))
             .collect(),
     )))
 }
 
-pub(super) fn nil() -> Document {
-    Document::Nil
+pub(crate) fn nil() -> Format {
+    Format::Nil
 }
 
 #[cfg(test)]
@@ -96,7 +101,7 @@ mod test {
     #[test]
     fn nest_text_eq_text() {
         let doc = indent(indent(indent(text("abc".to_string()))));
-        let Document::Text(doc) = doc else {
+        let Format::Text(doc) = doc else {
             panic!("This test doc must be a text {:#?}", doc);
         };
         assert_eq!(doc.0, "abc")
@@ -106,7 +111,7 @@ mod test {
     #[test]
     fn nest_line_eq_nest() {
         let doc = indent(new_line());
-        let Document::Indent(doc) = doc else {
+        let Format::Indent(doc) = doc else {
             panic!("This test doc must be an indent {:#?}", doc);
         };
         assert_eq!(doc.level, 1)
@@ -116,7 +121,7 @@ mod test {
     #[test]
     fn nest_line_eq_bigger_nest() {
         let doc = indent(indent(indent(new_line())));
-        let Document::Indent(doc) = doc else {
+        let Format::Indent(doc) = doc else {
             panic!("This test doc must be an indent {:#?}", doc);
         };
         assert_eq!(doc.level, 3)

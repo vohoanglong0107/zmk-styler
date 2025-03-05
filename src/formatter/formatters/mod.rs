@@ -1,4 +1,5 @@
+mod document;
 mod node;
 mod property;
 
-pub(super) use node::format_node;
+pub(crate) use document::format_document;

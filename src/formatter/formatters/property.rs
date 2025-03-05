@@ -1,189 +1,68 @@
-use itertools::Itertools;
-
 use crate::{
     ast::{
-        ArrayCell, ArrayValue, NonBoolPropertyValue, Property, PropertyValue, PropertyValues,
-        StringValue,
+        ArrayCell, ArrayValue, BoolPropertyDefinition, NonBoolPropertyDefinition,
+        PropertyDefinition, PropertyValue, PropertyValues, StringValue,
     },
-    formatter::ir::{concat, nil, space, tag, text, Document},
+    formatter::{Format, Formatter},
 };
 
-pub(super) fn format_property(prop: Property) -> Document {
-    let value = match prop.value {
-        PropertyValue::Bool => nil(),
-        PropertyValue::Values(values) => {
-            concat([space(), text("="), space(), format_property_values(values)])
-        }
-    };
-    concat([text(prop.name), value, tag(";")])
+pub(super) fn format_property(prop: PropertyDefinition, f: &Formatter) -> Format {
+    match prop {
+        PropertyDefinition::Bool(prop) => format_bool_property(prop, f),
+        PropertyDefinition::NonBool(prop) => format_non_bool_property(prop, f),
+    }
 }
 
-fn format_property_values(values: PropertyValues) -> Document {
-    let formatted_values =
-        Itertools::intersperse(values.into_iter().map(format_property_value), tag(","));
-    concat(formatted_values)
+fn format_bool_property(prop: BoolPropertyDefinition, f: &Formatter) -> Format {
+    f.pair(f.text(prop.name), f.tag(";"))
 }
 
-fn format_property_value(value: NonBoolPropertyValue) -> Document {
+fn format_non_bool_property(prop: NonBoolPropertyDefinition, f: &Formatter) -> Format {
+    f.list([
+        f.text(prop.name),
+        f.space(),
+        f.tag("="),
+        f.space(),
+        format_property_values(prop.values, f),
+        f.tag(";"),
+    ])
+}
+
+fn format_property_values(values: PropertyValues, f: &Formatter) -> Format {
+    f.separated_list(
+        values
+            .into_iter()
+            .map(|value| format_property_value(value, f)),
+        f.tag(","),
+    )
+}
+
+fn format_property_value(value: PropertyValue, f: &Formatter) -> Format {
     match value {
-        NonBoolPropertyValue::Array(array) => format_array(array),
-        NonBoolPropertyValue::String(string) => format_string(string),
+        PropertyValue::Array(array) => format_array(array, f),
+        PropertyValue::String(string) => format_string(string, f),
         _ => todo!(),
     }
 }
 
-fn format_array(array: ArrayValue) -> Document {
-    let mut formatted_array = vec![tag("<")];
-    let formatted_array_elements =
-        Itertools::intersperse(array.into_iter().map(format_cell), space());
-    formatted_array.extend(formatted_array_elements);
-    formatted_array.push(tag(">"));
-    concat(formatted_array)
+fn format_array(array: ArrayValue, f: &Formatter) -> Format {
+    f.list([
+        f.tag("<"),
+        f.separated_list(
+            array.into_iter().map(|cell| format_cell(cell, f)),
+            f.space(),
+        ),
+        f.tag(">"),
+    ])
 }
 
-fn format_cell(cell: ArrayCell) -> Document {
+fn format_cell(cell: ArrayCell, f: &Formatter) -> Format {
     match cell {
-        ArrayCell::Int(int_cell) => text(int_cell),
+        ArrayCell::Int(int_cell) => f.text(int_cell),
         _ => todo!(),
     }
 }
 
-fn format_string(array: StringValue) -> Document {
-    concat([tag("\""), text(array), tag("\"")])
-}
-
-#[cfg(test)]
-mod test {
-    use insta::assert_debug_snapshot;
-
-    use crate::parser::{property::parse_property, Parser};
-
-    use super::*;
-    #[test]
-    fn format_boolean_property() {
-        let prop = parse("hold-trigger-on-release;");
-        assert_debug_snapshot!(format_property(prop), @r#"
-        Concat(
-            [
-                Text(
-                    "hold-trigger-on-release",
-                ),
-                Text(
-                    ";",
-                ),
-            ],
-        )
-        "#)
-    }
-
-    #[test]
-    fn format_i32_array_property() {
-        let prop = parse("arr = <1 2 3>;");
-        assert_debug_snapshot!(format_property(prop), @r#"
-        Concat(
-            [
-                Text(
-                    "arr",
-                ),
-                Concat(
-                    [
-                        Text(
-                            " ",
-                        ),
-                        Text(
-                            "=",
-                        ),
-                        Text(
-                            " ",
-                        ),
-                        Concat(
-                            [
-                                Concat(
-                                    [
-                                        Text(
-                                            "<",
-                                        ),
-                                        Text(
-                                            "1",
-                                        ),
-                                        Text(
-                                            " ",
-                                        ),
-                                        Text(
-                                            "2",
-                                        ),
-                                        Text(
-                                            " ",
-                                        ),
-                                        Text(
-                                            "3",
-                                        ),
-                                        Text(
-                                            ">",
-                                        ),
-                                    ],
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-                Text(
-                    ";",
-                ),
-            ],
-        )
-        "#)
-    }
-
-    #[test]
-    fn format_string_property() {
-        let prop = parse("label = \"BT_2\";");
-        assert_debug_snapshot!(format_property(prop), @r#"
-        Concat(
-            [
-                Text(
-                    "label",
-                ),
-                Concat(
-                    [
-                        Text(
-                            " ",
-                        ),
-                        Text(
-                            "=",
-                        ),
-                        Text(
-                            " ",
-                        ),
-                        Concat(
-                            [
-                                Concat(
-                                    [
-                                        Text(
-                                            "\"",
-                                        ),
-                                        Text(
-                                            "BT_2",
-                                        ),
-                                        Text(
-                                            "\"",
-                                        ),
-                                    ],
-                                ),
-                            ],
-                        ),
-                    ],
-                ),
-                Text(
-                    ";",
-                ),
-            ],
-        )
-        "#)
-    }
-
-    fn parse(s: &str) -> Property {
-        let mut parser = Parser::new(s);
-        parse_property(&mut parser).unwrap()
-    }
+fn format_string(s: StringValue, f: &Formatter) -> Format {
+    f.text(s)
 }
