@@ -3,6 +3,7 @@ mod formatter;
 mod lexer;
 mod parser;
 mod source;
+mod trivia;
 use std::{error::Error, fs};
 
 use source::Source;
@@ -15,8 +16,8 @@ pub fn format(in_path: &str, out_path: &str) -> Result<(), Box<dyn Error>> {
     let file_str = file.as_str();
 
     let source = Source::new(file_str);
-    let tree = parser::parse(&source)?;
-    let formatted = formatter::format(tree, &source);
+    let (doc, comments) = parser::parse(&source)?;
+    let formatted = formatter::format(doc, &source, comments);
     fs::write(out_path, formatted)?;
     Ok(())
 }

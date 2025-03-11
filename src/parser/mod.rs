@@ -8,6 +8,7 @@ use crate::{
     ast::Document,
     lexer::{Lexer, Token, TokenKind, TokenSource},
     source::{Source, SourceIndex, SourceRange},
+    trivia::Trivia,
 };
 
 mod document;
@@ -18,7 +19,6 @@ mod utils;
 pub(crate) struct Parser<'src> {
     lexer: RefCell<TokenSource<'src>>,
     stuck_threshold: Cell<u32>,
-    tokens: Vec<Token>,
 }
 
 #[derive(Error, Debug)]
@@ -32,7 +32,6 @@ impl<'src> Parser<'src> {
         Self {
             lexer: RefCell::new(lexer),
             stuck_threshold: Cell::new(200),
-            tokens: Vec::new(),
         }
     }
 
@@ -77,7 +76,6 @@ impl<'src> Parser<'src> {
         let token = lexer.advance();
 
         assert_eq!(token.kind, kind);
-        self.tokens.push(token)
     }
 
     pub(super) fn start(&self) -> SourceIndex {
@@ -88,13 +86,19 @@ impl<'src> Parser<'src> {
         let end = self.lexer.borrow_mut().last_token_end();
         SourceRange::new(start, end)
     }
+
+    pub(super) fn finish(self) -> Trivia {
+        Trivia::new(self.lexer.into_inner().finish())
+    }
 }
 
-pub(crate) fn parse(source: &Source) -> Result<Document, ParseError> {
+pub(crate) fn parse(source: &Source) -> Result<(Document, Trivia), ParseError> {
     let lexer = Lexer::new(source);
     let lexer = TokenSource::new(lexer);
     let mut parser = Parser::new(lexer);
-    parse_document(&mut parser)
+    let doc = parse_document(&mut parser)?;
+    let comments = parser.finish();
+    Ok((doc, comments))
 }
 
 impl ParseError {

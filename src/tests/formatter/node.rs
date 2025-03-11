@@ -31,6 +31,7 @@ fn format_node_correctly() {
     assert_debug_snapshot!(format, @r"
     Concat [
         Concat [
+            Concat [],
             Text(/),
             Concat [
                 Text( ),
@@ -44,6 +45,7 @@ fn format_node_correctly() {
                         ],
                         Indent(1),
                         Concat [
+                            Concat [],
                             Text(behaviors),
                             Concat [
                                 Text( ),
@@ -52,6 +54,7 @@ fn format_node_correctly() {
                                     Indent(2),
                                     Concat [
                                         Concat [
+                                            Concat [],
                                             Concat [
                                                 Text(lower:),
                                                 Text( ),

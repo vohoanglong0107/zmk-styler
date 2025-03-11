@@ -11,7 +11,7 @@ pub(crate) struct SourceRange {
     end: SourceIndex,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Default)]
 pub(crate) struct SourceIndex {
     value: usize,
 }
@@ -75,12 +75,6 @@ impl SourceIndex {
         Self {
             value: self.value + 1,
         }
-    }
-}
-
-impl Default for SourceIndex {
-    fn default() -> Self {
-        Self { value: 0 }
     }
 }
 

@@ -83,9 +83,6 @@ impl<'src> Lexer<'src> {
         loop {
             self.advance();
             if self.is_eof() || self.current_byte() == b'\n' {
-                if self.current_byte() == b'\n' {
-                    self.advance();
-                }
                 break Token {
                     kind: TokenKind::S_COMMENT,
                     range: self.range(start),
@@ -264,8 +261,12 @@ impl Token {
         )
     }
 
-    pub(crate) fn is_eof(&self) -> bool {
-        matches!(self.kind, TokenKind::EOF)
+    pub(crate) fn is_comment(&self) -> bool {
+        matches!(self.kind, TokenKind::B_COMMENT | TokenKind::S_COMMENT)
+    }
+
+    pub(crate) fn is_single_line_comment(&self) -> bool {
+        matches!(self.kind, TokenKind::S_COMMENT)
     }
 
     fn eof() -> Self {
@@ -273,6 +274,11 @@ impl Token {
             kind: TokenKind::EOF,
             range: SourceRange::null(),
         }
+    }
+
+    #[cfg(test)]
+    fn is_eof(&self) -> bool {
+        matches!(self.kind, TokenKind::EOF)
     }
 }
 
@@ -336,6 +342,7 @@ pub(crate) struct TokenSource<'src> {
     cached_next_tokens: VecDeque<Token>,
     lexer: Lexer<'src>,
     last_token_range: SourceRange,
+    trivia: Vec<Token>,
 }
 
 impl<'src> TokenSource<'src> {
@@ -344,6 +351,7 @@ impl<'src> TokenSource<'src> {
             cached_next_tokens: VecDeque::new(),
             lexer,
             last_token_range: SourceRange::null(),
+            trivia: Vec::new(),
         }
     }
 }
@@ -372,6 +380,10 @@ impl TokenSource<'_> {
         self.last_token_range.end()
     }
 
+    pub(crate) fn finish(self) -> Vec<Token> {
+        self.trivia
+    }
+
     fn current_token_range(&mut self) -> SourceRange {
         self.populate_cache(1);
         self.cached_next_tokens.front().unwrap().range
@@ -383,6 +395,7 @@ impl TokenSource<'_> {
             if !token.is_trivia() {
                 break token;
             }
+            self.trivia.push(token)
         }
     }
 
@@ -566,7 +579,8 @@ mod test {
             Token(NEW_LINE, [0..1], "\n")
             Token(B_COMMENT, [1..18], "/* #define for */")
             Token(NEW_LINE, [18..19], "\n")
-            Token(S_COMMENT, [19..37], "// single comment\n")
+            Token(S_COMMENT, [19..36], "// single comment")
+            Token(NEW_LINE, [36..37], "\n")
         ]
         "#);
     }

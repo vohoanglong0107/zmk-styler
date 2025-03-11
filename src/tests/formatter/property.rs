@@ -15,6 +15,7 @@ fn format_boolean_property() {
     assert_debug_snapshot!(format, @r"
     Concat [
         Concat [
+            Concat [],
             Text(/),
             Concat [
                 Text( ),
@@ -50,6 +51,7 @@ fn format_i32_array_property() {
     assert_debug_snapshot!(format, @r"
     Concat [
         Concat [
+            Concat [],
             Text(/),
             Concat [
                 Text( ),
@@ -58,6 +60,7 @@ fn format_i32_array_property() {
                     Indent(1),
                     Concat [
                         Concat [
+                            Concat [],
                             Text(arr),
                             Text( ),
                             Text(=),
@@ -101,6 +104,7 @@ fn format_string_property() {
     assert_debug_snapshot!(format, @r#"
     Concat [
         Concat [
+            Concat [],
             Text(/),
             Concat [
                 Text( ),
@@ -109,6 +113,7 @@ fn format_string_property() {
                     Indent(1),
                     Concat [
                         Concat [
+                            Concat [],
                             Text(label),
                             Text( ),
                             Text(=),

@@ -1,24 +1,22 @@
 use crate::{
-    formatter::{format_document, Format, Formatter, Writer},
+    formatter::{format_document, Format, FormatContext, Writer},
     parser::parse,
     source::Source,
 };
 
 mod node;
 mod property;
+mod trivia;
 
 fn debug_format(test_str: &str) -> Format {
     let source = Source::new(test_str);
-    let formatter = Formatter::new(&source);
-    let doc = parse(&source).unwrap();
-    format_document(doc, &formatter)
+    let (doc, comments) = parse(&source).unwrap();
+    let mut format_context = FormatContext::new(&source, comments);
+    format_document(doc, &mut format_context)
 }
 
 fn debug_formatted(test_str: &str) -> String {
-    let source = Source::new(test_str);
-    let formatter = Formatter::new(&source);
-    let doc = parse(&source).unwrap();
-    let document = format_document(doc, &formatter);
+    let document = debug_format(test_str);
 
     let mut writer = Writer::default();
     writer.write(document);

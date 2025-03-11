@@ -1,12 +1,12 @@
 use crate::{
     ast::{Document, Statement},
-    formatter::{Format, Formatter},
+    formatter::{rules::list, Format, FormatContext},
 };
 
 use super::node::format_node;
 
-pub(crate) fn format_document(document: Document, f: &Formatter) -> Format {
-    f.list(
+pub(crate) fn format_document(document: Document, f: &mut FormatContext) -> Format {
+    list(
         document
             .statements
             .into_iter()
@@ -14,7 +14,7 @@ pub(crate) fn format_document(document: Document, f: &Formatter) -> Format {
     )
 }
 
-fn format_statement(statement: Statement, f: &Formatter) -> Format {
+fn format_statement(statement: Statement, f: &mut FormatContext) -> Format {
     match statement {
         Statement::Node(node) => format_node(node, f),
     }

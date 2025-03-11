@@ -7,16 +7,19 @@ use crate::{
         Label, NodeBody, NodeBodyEntry, NodeDefinition, NonBoolPropertyDefinition,
         PropertyDefinition, PropertyName, PropertyValue, PropertyValues, Statement, StringValue,
     },
-    formatter::{Format, Formatter, Writer},
+    formatter::{
+        rules::{indent, list, new_line, nil, pair, separated_list, tag, text},
+        Format, FormatContext, Writer,
+    },
     parser::parse,
     source::Source,
 };
 
 fn debug_ast(test_str: &str) -> String {
     let source = Source::new(test_str);
-    let formatter = Formatter::new(&source);
     match parse(&source) {
-        Ok(doc) => {
+        Ok((doc, comments)) => {
+            let formatter = FormatContext::new(&source, comments);
             let mut writer = Writer::default();
             writer.write(serialize_doc(doc, &formatter));
             writer.finish()
@@ -25,173 +28,168 @@ fn debug_ast(test_str: &str) -> String {
     }
 }
 
-fn serialize_doc(doc: Document, f: &Formatter) -> Format {
-    f.list([
-        f.tag("Document@"),
-        f.tag(doc.range()),
-        f.tag("("),
-        f.indent(serialize_statements(doc.statements, f)),
-        f.new_line(),
-        f.tag(")"),
+fn serialize_doc(doc: Document, f: &FormatContext) -> Format {
+    list([
+        tag("Document@"),
+        tag(doc.range()),
+        tag("("),
+        indent(serialize_statements(doc.statements, f)),
+        new_line(),
+        tag(")"),
     ])
 }
 
-fn serialize_statements(statements: Vec<Statement>, f: &Formatter) -> Format {
-    f.separated_list(
+fn serialize_statements(statements: Vec<Statement>, f: &FormatContext) -> Format {
+    separated_list(
         statements.into_iter().map(|s| serialize_statement(s, f)),
-        f.new_line(),
+        new_line(),
     )
 }
 
-fn serialize_statement(statement: Statement, f: &Formatter) -> Format {
+fn serialize_statement(statement: Statement, f: &FormatContext) -> Format {
     match statement {
         Statement::Node(node) => serialize_node(node, f),
     }
 }
 
-fn serialize_node(node: NodeDefinition, f: &Formatter) -> Format {
-    f.list([
-        f.tag("Node@"),
-        f.tag(node.range),
-        f.tag("("),
-        f.indent(
-            f.list([
-                node.label
-                    .map_or(f.nil(), |label| serialize_label(label, f)),
-                serialize_node_identifier(node.identifier, f),
-                serialize_node_body(node.body, f),
-            ]),
-        ),
-        f.new_line(),
-        f.tag(")"),
-        f.tag(","),
+fn serialize_node(node: NodeDefinition, f: &FormatContext) -> Format {
+    list([
+        tag("Node@"),
+        tag(node.range),
+        tag("("),
+        indent(list([
+            node.label.map_or(nil(), |label| serialize_label(label, f)),
+            serialize_node_identifier(node.identifier, f),
+            serialize_node_body(node.body, f),
+        ])),
+        new_line(),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_label(label: Label, f: &Formatter) -> Format {
-    f.list([
-        f.tag("Label@"),
-        f.tag(label.range()),
-        f.tag("("),
-        f.text(label),
-        f.tag(")"),
-        f.tag(","),
-        f.new_line(),
+fn serialize_label(label: Label, f: &FormatContext) -> Format {
+    list([
+        tag("Label@"),
+        tag(label.range()),
+        tag("("),
+        text(label, f.source),
+        tag(")"),
+        tag(","),
+        new_line(),
     ])
 }
 
-fn serialize_node_identifier(identifier: Identifier, f: &Formatter) -> Format {
-    f.list([
-        f.tag("Identifier@"),
-        f.tag(identifier.range()),
-        f.tag("("),
-        f.text(identifier),
-        f.tag(")"),
-        f.tag(","),
-        f.new_line(),
+fn serialize_node_identifier(identifier: Identifier, f: &FormatContext) -> Format {
+    list([
+        tag("Identifier@"),
+        tag(identifier.range()),
+        tag("("),
+        text(identifier, f.source),
+        tag(")"),
+        tag(","),
+        new_line(),
     ])
 }
 
-fn serialize_node_body(node_body: NodeBody, f: &Formatter) -> Format {
-    f.list([
-        f.tag("NodeBody@"),
-        f.tag(node_body.range()),
-        f.tag("("),
+fn serialize_node_body(node_body: NodeBody, f: &FormatContext) -> Format {
+    list([
+        tag("NodeBody@"),
+        tag(node_body.range()),
+        tag("("),
         if node_body.entries.is_empty() {
-            f.text(node_body)
+            text(node_body, f.source)
         } else {
-            f.pair(
-                f.indent(serialize_node_body_entries(node_body.entries, f)),
-                f.new_line(),
+            pair(
+                indent(serialize_node_body_entries(node_body.entries, f)),
+                new_line(),
             )
         },
-        f.tag(")"),
-        f.tag(","),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_node_body_entries(entries: Vec<NodeBodyEntry>, f: &Formatter) -> Format {
-    f.separated_list(
+fn serialize_node_body_entries(entries: Vec<NodeBodyEntry>, f: &FormatContext) -> Format {
+    separated_list(
         entries
             .into_iter()
             .map(|entry| serialize_node_body_entry(entry, f)),
-        f.new_line(),
+        new_line(),
     )
 }
 
-fn serialize_node_body_entry(entry: NodeBodyEntry, f: &Formatter) -> Format {
+fn serialize_node_body_entry(entry: NodeBodyEntry, f: &FormatContext) -> Format {
     match entry {
         NodeBodyEntry::Node(node) => serialize_node(node, f),
         NodeBodyEntry::Property(prop) => serialize_property(prop, f),
     }
 }
 
-fn serialize_property(property: PropertyDefinition, f: &Formatter) -> Format {
+fn serialize_property(property: PropertyDefinition, f: &FormatContext) -> Format {
     match property {
         PropertyDefinition::Bool(prop) => serialize_bool_property(prop, f),
         PropertyDefinition::NonBool(prop) => serialize_non_bool_property(prop, f),
     }
 }
 
-fn serialize_bool_property(property: BoolPropertyDefinition, f: &Formatter) -> Format {
-    f.list([
-        f.tag("BoolProperty@"),
-        f.tag(property.range()),
-        f.tag("("),
-        f.indent(serialize_property_name(property.name, f)),
-        f.new_line(),
-        f.tag(")"),
-        f.tag(","),
+fn serialize_bool_property(property: BoolPropertyDefinition, f: &FormatContext) -> Format {
+    list([
+        tag("BoolProperty@"),
+        tag(property.range()),
+        tag("("),
+        indent(serialize_property_name(property.name, f)),
+        new_line(),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_non_bool_property(property: NonBoolPropertyDefinition, f: &Formatter) -> Format {
-    f.list([
-        f.tag("NonBoolProperty@"),
-        f.tag(property.range()),
-        f.tag("("),
-        f.indent(f.list([
+fn serialize_non_bool_property(property: NonBoolPropertyDefinition, f: &FormatContext) -> Format {
+    list([
+        tag("NonBoolProperty@"),
+        tag(property.range()),
+        tag("("),
+        indent(list([
             serialize_property_name(property.name, f),
-            f.new_line(),
+            new_line(),
             serialize_property_values(property.values, f),
         ])),
-        f.new_line(),
-        f.tag(")"),
-        f.tag(","),
+        new_line(),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_property_name(property: PropertyName, f: &Formatter) -> Format {
-    f.list([
-        f.tag("PropertyName@"),
-        f.tag(property.range()),
-        f.tag("("),
-        f.text(property),
-        f.tag(")"),
-        f.tag(","),
+fn serialize_property_name(property: PropertyName, f: &FormatContext) -> Format {
+    list([
+        tag("PropertyName@"),
+        tag(property.range()),
+        tag("("),
+        text(property, f.source),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_property_values(property_values: PropertyValues, f: &Formatter) -> Format {
-    f.list([
-        f.tag("PropertyValues@"),
-        f.tag(property_values.range()),
-        f.tag("("),
-        f.indent(
-            f.separated_list(
-                property_values
-                    .into_iter()
-                    .map(|value| serialize_property_value(value, f)),
-                f.new_line(),
-            ),
-        ),
-        f.new_line(),
-        f.tag(")"),
-        f.tag(","),
+fn serialize_property_values(property_values: PropertyValues, f: &FormatContext) -> Format {
+    list([
+        tag("PropertyValues@"),
+        tag(property_values.range()),
+        tag("("),
+        indent(separated_list(
+            property_values
+                .into_iter()
+                .map(|value| serialize_property_value(value, f)),
+            new_line(),
+        )),
+        new_line(),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_property_value(property_value: PropertyValue, f: &Formatter) -> Format {
+fn serialize_property_value(property_value: PropertyValue, f: &FormatContext) -> Format {
     match property_value {
         PropertyValue::Array(array) => serialize_array(array, f),
         PropertyValue::String(s) => serialize_string(s, f),
@@ -199,50 +197,48 @@ fn serialize_property_value(property_value: PropertyValue, f: &Formatter) -> For
     }
 }
 
-fn serialize_array(array: ArrayValue, f: &Formatter) -> Format {
-    f.list([
-        f.tag("Array@"),
-        f.tag(array.range()),
-        f.tag("("),
-        f.indent(
-            f.separated_list(
-                array
-                    .into_iter()
-                    .map(|value| serialize_array_cell(value, f)),
-                f.new_line(),
-            ),
-        ),
-        f.new_line(),
-        f.tag(")"),
-        f.tag(","),
+fn serialize_array(array: ArrayValue, f: &FormatContext) -> Format {
+    list([
+        tag("Array@"),
+        tag(array.range()),
+        tag("("),
+        indent(separated_list(
+            array
+                .into_iter()
+                .map(|value| serialize_array_cell(value, f)),
+            new_line(),
+        )),
+        new_line(),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_array_cell(cell: ArrayCell, f: &Formatter) -> Format {
+fn serialize_array_cell(cell: ArrayCell, f: &FormatContext) -> Format {
     match cell {
         ArrayCell::Int(int_value) => serialize_int_value(int_value, f),
         _ => todo!(),
     }
 }
 
-fn serialize_int_value(cell: IntValue, f: &Formatter) -> Format {
-    f.list([
-        f.tag("Int@"),
-        f.tag(cell.range()),
-        f.tag("("),
-        f.text(cell),
-        f.tag(")"),
-        f.tag(","),
+fn serialize_int_value(cell: IntValue, f: &FormatContext) -> Format {
+    list([
+        tag("Int@"),
+        tag(cell.range()),
+        tag("("),
+        text(cell, f.source),
+        tag(")"),
+        tag(","),
     ])
 }
 
-fn serialize_string(s: StringValue, f: &Formatter) -> Format {
-    f.list([
-        f.tag("String@"),
-        f.tag(s.range()),
-        f.tag("("),
-        f.text(s),
-        f.tag(")"),
-        f.tag(","),
+fn serialize_string(s: StringValue, f: &FormatContext) -> Format {
+    list([
+        tag("String@"),
+        tag(s.range()),
+        tag("("),
+        text(s, f.source),
+        tag(")"),
+        tag(","),
     ])
 }

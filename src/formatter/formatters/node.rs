@@ -1,60 +1,71 @@
 use crate::{
-    ast::{Identifier, Label, NodeBody, NodeBodyEntry, NodeDefinition, PropertyDefinition},
-    formatter::{Format, Formatter},
+    ast::{Identifier, Label, NodeBody, NodeBodyEntry, NodeDefinition},
+    formatter::{
+        rules::{
+            flush_comments, indent, list, new_line, nil, pair, separated_list, space, tag, text,
+        },
+        Format, FormatContext,
+    },
 };
 
 use super::property::format_property;
 
-pub(crate) fn format_node(node: NodeDefinition, f: &Formatter) -> Format {
-    f.list([
+pub(crate) fn format_node(node: NodeDefinition, f: &mut FormatContext) -> Format {
+    let node_format = [
+        flush_comments(&node, f.source, &mut f.trivia),
         format_label(node.label, f),
         format_identifier(node.identifier, f),
         format_node_body(node.body, f),
-    ])
+    ];
+    list(node_format)
 }
 
-fn format_label(label: Option<Label>, f: &Formatter) -> Format {
+fn format_label(label: Option<Label>, f: &FormatContext) -> Format {
     match label {
         // TODO:: format label text and ":" separately to prevent comments
         // and whitespaces in between
-        Some(label) => f.pair(f.text(label), f.space()),
-        None => f.nil(),
+        Some(label) => pair(text(label, f.source), space()),
+        None => nil(),
     }
 }
 
-fn format_identifier(identifier: Identifier, f: &Formatter) -> Format {
+fn format_identifier(identifier: Identifier, f: &FormatContext) -> Format {
     match identifier {
-        Identifier::Root(_) => f.tag("/"),
+        Identifier::Root(_) => tag("/"),
         Identifier::Other(identifier) => match identifier.address {
-            Some(address) => f.list([f.text(identifier.name), f.tag("@"), f.text(address)]),
-            None => f.text(identifier.name),
+            Some(address) => list([
+                text(identifier.name, f.source),
+                tag("@"),
+                text(address, f.source),
+            ]),
+            None => text(identifier.name, f.source),
         },
     }
 }
 
-fn format_node_body(body: NodeBody, f: &Formatter) -> Format {
+fn format_node_body(body: NodeBody, f: &mut FormatContext) -> Format {
     let multiline = !body.entries.is_empty();
 
-    f.list([
-        f.space(),
-        f.tag("{"),
+    list([
+        space(),
+        tag("{"),
         if multiline {
-            f.indent(format_node_body_entries(body.entries, f))
+            indent(format_node_body_entries(body.entries, f))
         } else {
-            f.nil()
+            nil()
         },
-        if multiline { f.new_line() } else { f.nil() },
-        f.tag("}"),
-        f.tag(";"),
+        if multiline { new_line() } else { nil() },
+        tag("}"),
+        tag(";"),
     ])
 }
 
-fn format_node_body_entries(entries: Vec<NodeBodyEntry>, f: &Formatter) -> Format {
-    f.separated_list(
+fn format_node_body_entries(entries: Vec<NodeBodyEntry>, f: &mut FormatContext) -> Format {
+    separated_list(
         entries.into_iter().map(|entry| match entry {
             NodeBodyEntry::Node(node) => format_node(node, f),
             NodeBodyEntry::Property(property) => format_property(property, f),
         }),
-        f.new_line(),
+        new_line(),
     )
 }
