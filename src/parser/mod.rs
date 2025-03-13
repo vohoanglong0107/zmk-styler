@@ -6,9 +6,9 @@ use thiserror::Error;
 
 use crate::{
     ast::Document,
-    lexer::{Lexer, Token, TokenKind, TokenSource},
+    lexer::{BufferedLexer, Lexer, Token, TokenKind},
     source::{Source, SourceIndex, SourceRange},
-    trivia::Trivia,
+    token_source::TokenSource,
 };
 
 mod document;
@@ -17,7 +17,7 @@ mod property;
 mod utils;
 
 pub(crate) struct Parser<'src> {
-    lexer: RefCell<TokenSource<'src>>,
+    lexer: RefCell<BufferedLexer<'src>>,
     stuck_threshold: Cell<u32>,
 }
 
@@ -28,7 +28,7 @@ pub(crate) struct ParseError {
 }
 
 impl<'src> Parser<'src> {
-    pub(crate) fn new(lexer: TokenSource<'src>) -> Self {
+    pub(crate) fn new(lexer: BufferedLexer<'src>) -> Self {
         Self {
             lexer: RefCell::new(lexer),
             stuck_threshold: Cell::new(200),
@@ -87,14 +87,14 @@ impl<'src> Parser<'src> {
         SourceRange::new(start, end)
     }
 
-    pub(super) fn finish(self) -> Trivia {
-        Trivia::new(self.lexer.into_inner().finish())
+    pub(super) fn finish(self) -> TokenSource {
+        TokenSource::new(self.lexer.into_inner().finish())
     }
 }
 
-pub(crate) fn parse(source: &Source) -> Result<(Document, Trivia), ParseError> {
+pub(crate) fn parse(source: &Source) -> Result<(Document, TokenSource), ParseError> {
     let lexer = Lexer::new(source);
-    let lexer = TokenSource::new(lexer);
+    let lexer = BufferedLexer::new(lexer);
     let mut parser = Parser::new(lexer);
     let doc = parse_document(&mut parser)?;
     let comments = parser.finish();

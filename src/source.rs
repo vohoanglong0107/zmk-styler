@@ -54,10 +54,11 @@ impl SourceRange {
     }
 
     // For when we don't need to use value of the range, like the EOF token
+    // Max value to help with binary search
     pub(crate) fn null() -> Self {
         SourceRange {
-            start: SourceIndex::default(),
-            end: SourceIndex::default(),
+            start: SourceIndex { value: usize::MAX },
+            end: SourceIndex { value: usize::MAX },
         }
     }
 

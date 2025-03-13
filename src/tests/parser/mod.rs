@@ -73,7 +73,7 @@ fn serialize_label(label: Label, f: &FormatContext) -> Format {
         tag("Label@"),
         tag(label.range()),
         tag("("),
-        text(label, f.source),
+        text(&label, f.source),
         tag(")"),
         tag(","),
         new_line(),
@@ -85,7 +85,7 @@ fn serialize_node_identifier(identifier: Identifier, f: &FormatContext) -> Forma
         tag("Identifier@"),
         tag(identifier.range()),
         tag("("),
-        text(identifier, f.source),
+        text(&identifier, f.source),
         tag(")"),
         tag(","),
         new_line(),
@@ -98,7 +98,7 @@ fn serialize_node_body(node_body: NodeBody, f: &FormatContext) -> Format {
         tag(node_body.range()),
         tag("("),
         if node_body.entries.is_empty() {
-            text(node_body, f.source)
+            text(&node_body, f.source)
         } else {
             pair(
                 indent(serialize_node_body_entries(node_body.entries, f)),
@@ -166,7 +166,7 @@ fn serialize_property_name(property: PropertyName, f: &FormatContext) -> Format 
         tag("PropertyName@"),
         tag(property.range()),
         tag("("),
-        text(property, f.source),
+        text(&property, f.source),
         tag(")"),
         tag(","),
     ])
@@ -226,7 +226,7 @@ fn serialize_int_value(cell: IntValue, f: &FormatContext) -> Format {
         tag("Int@"),
         tag(cell.range()),
         tag("("),
-        text(cell, f.source),
+        text(&cell, f.source),
         tag(")"),
         tag(","),
     ])
@@ -237,7 +237,7 @@ fn serialize_string(s: StringValue, f: &FormatContext) -> Format {
         tag("String@"),
         tag(s.range()),
         tag("("),
-        text(s, f.source),
+        text(&s, f.source),
         tag(")"),
         tag(","),
     ])

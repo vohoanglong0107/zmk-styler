@@ -27,12 +27,14 @@ fn format_boolean_property() {
                             Text(hold-trigger-on-release),
                             Text(;),
                         ],
+                        Concat [],
                     ],
                 ],
                 Indent(0),
                 Text(}),
                 Text(;),
             ],
+            Concat [],
         ],
     ]
     ")
@@ -79,13 +81,16 @@ fn format_i32_array_property() {
                                 ],
                             ],
                             Text(;),
+                            Concat [],
                         ],
+                        Concat [],
                     ],
                 ],
                 Indent(0),
                 Text(}),
                 Text(;),
             ],
+            Concat [],
         ],
     ]
     ")
@@ -122,13 +127,16 @@ fn format_string_property() {
                                 Text("BT_2"),
                             ],
                             Text(;),
+                            Concat [],
                         ],
+                        Concat [],
                     ],
                 ],
                 Indent(0),
                 Text(}),
                 Text(;),
             ],
+            Concat [],
         ],
     ]
     "#)

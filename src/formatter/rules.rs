@@ -9,7 +9,7 @@ use crate::{
 use super::{context::TriviaFormatContext, ir, Format, Source};
 
 /// Write node's content as it is.
-pub(crate) fn text<T: AstNode>(node: T, source: &Source) -> Format {
+pub(crate) fn text<T: AstNode>(node: &T, source: &Source) -> Format {
     let node_text =
         std::str::from_utf8(&source[node.range()]).expect("Node must be a valid utf8 string");
     ir::text(node_text)
@@ -62,13 +62,42 @@ pub(crate) fn nil() -> Format {
     ir::nil()
 }
 
-pub(crate) fn flush_comments<T: AstNode>(
+pub(crate) fn flush_comments_before<T: AstNode>(
     node: &T,
     source: &Source,
     trivia_context: &mut TriviaFormatContext,
 ) -> Format {
-    let trivia = trivia_context.unformatted_trivia(node);
-    trivia_context.formatted_up_to(node);
+    let trivia = trivia_context.format_leading_trivia(node);
+    list(
+        trivia
+            .into_iter()
+            // Format white space and new line too
+            .filter(|token| token.is_comment())
+            .map(|trivia_token| format_comment(trivia_token, source)),
+    )
+}
+
+pub(crate) fn format_trailing_comments<T: AstNode>(
+    node: &T,
+    source: &Source,
+    trivia_context: &mut TriviaFormatContext,
+) -> Format {
+    let trivia = trivia_context.format_trailing_trivia(node);
+    list(
+        trivia
+            .into_iter()
+            // Format white space and new line too
+            .filter(|token| token.is_comment())
+            .map(|trivia_token| format_comment(trivia_token, source)),
+    )
+}
+
+pub(crate) fn flush_comments_after<T: AstNode>(
+    node: &T,
+    source: &Source,
+    trivia_context: &mut TriviaFormatContext,
+) -> Format {
+    let trivia = trivia_context.flush_trivia_after(node);
     list(
         trivia
             .into_iter()
@@ -92,7 +121,6 @@ fn format_single_line_comment(comment: &str) -> Format {
 }
 
 fn format_block_comment(comment: &str) -> Format {
-    dbg!(comment);
     let comment_lines = comment.lines().collect_vec();
     let multiline = comment_lines.len() > 1;
     let mut formatted_comment_lines = Vec::new();

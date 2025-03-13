@@ -6,7 +6,7 @@ use super::{debug_format, debug_formatted};
 fn format_single_line_comments() {
     let test_str = "/ {
         // This is a label
-        label = \"BT_2\"; 
+        label = \"BT_2\"; // End of label
 
         // This
         // is node1
@@ -14,116 +14,38 @@ fn format_single_line_comments() {
             // This
             // is
             // node2
-            node2 {};
+            node2 {}; // End of node 2
+            // End
+        // of
+        // node 1
         };
     };";
-    let format = debug_format(test_str);
     let formatted = debug_formatted(test_str);
     assert_snapshot!(formatted, @r#"
     / {
         // This is a label
-        label = "BT_2";
+        label = "BT_2";// End of label
+        
         // This
         // is node1
         node1 {
             // This
             // is
             // node2
-            node2 {};
+            node2 {};// End of node 2
+            // End
+            // of
+            // node 1
+            
         };
     };
     "#);
-    assert_debug_snapshot!(format, @r#"
-    Concat [
-        Concat [
-            Concat [],
-            Text(/),
-            Concat [
-                Text( ),
-                Text({),
-                Concat [
-                    Indent(1),
-                    Concat [
-                        Concat [
-                            Concat [
-                                Concat [
-                                    Text(// This is a label),
-                                    Indent(1),
-                                ],
-                            ],
-                            Text(label),
-                            Text( ),
-                            Text(=),
-                            Text( ),
-                            Concat [
-                                Text("BT_2"),
-                            ],
-                            Text(;),
-                        ],
-                        Indent(1),
-                        Concat [
-                            Concat [
-                                Concat [
-                                    Text(// This),
-                                    Indent(1),
-                                ],
-                                Concat [
-                                    Text(// is node1),
-                                    Indent(1),
-                                ],
-                            ],
-                            Text(node1),
-                            Concat [
-                                Text( ),
-                                Text({),
-                                Concat [
-                                    Indent(2),
-                                    Concat [
-                                        Concat [
-                                            Concat [
-                                                Concat [
-                                                    Text(// This),
-                                                    Indent(2),
-                                                ],
-                                                Concat [
-                                                    Text(// is),
-                                                    Indent(2),
-                                                ],
-                                                Concat [
-                                                    Text(// node2),
-                                                    Indent(2),
-                                                ],
-                                            ],
-                                            Text(node2),
-                                            Concat [
-                                                Text( ),
-                                                Text({),
-                                                Text(}),
-                                                Text(;),
-                                            ],
-                                        ],
-                                    ],
-                                ],
-                                Indent(1),
-                                Text(}),
-                                Text(;),
-                            ],
-                        ],
-                    ],
-                ],
-                Indent(0),
-                Text(}),
-                Text(;),
-            ],
-        ],
-    ]
-    "#)
 }
 
 #[test]
 fn format_block_comments() {
     let test_str = r#"/ {
-        /* This is a label */label = "BT_2"; 
+        /* This is a label */label = "BT_2"; /* End of label */
 
         /* This is
          * node 1*/
@@ -131,101 +53,29 @@ fn format_block_comments() {
             /* This
              * is
              * node2*/
-            node2 {};
+            node2 {}; /* End of node 2 */
+            /* End
+             * Of
+             * Node1
+             */
         };
     };"#;
-    let format = debug_format(test_str);
     let formatted = debug_formatted(test_str);
     assert_snapshot!(formatted, @r#"
     / {
-        /* This is a label */ label = "BT_2";
+        /* This is a label */ label = "BT_2";/* End of label */ 
         /* This is
          * node 1*/
         node1 {
             /* This
              * is
              * node2*/
-            node2 {};
+            node2 {};/* End of node 2 */ /* End
+             * Of
+             * Node1
+             */
+            
         };
     };
     "#);
-    assert_debug_snapshot!(format, @r#"
-    Concat [
-        Concat [
-            Concat [],
-            Text(/),
-            Concat [
-                Text( ),
-                Text({),
-                Concat [
-                    Indent(1),
-                    Concat [
-                        Concat [
-                            Concat [
-                                Concat [
-                                    Text(/* This is a label */),
-                                    Text( ),
-                                ],
-                            ],
-                            Text(label),
-                            Text( ),
-                            Text(=),
-                            Text( ),
-                            Concat [
-                                Text("BT_2"),
-                            ],
-                            Text(;),
-                        ],
-                        Indent(1),
-                        Concat [
-                            Concat [
-                                Concat [
-                                    Text(/* This is),
-                                    Indent(1),
-                                    Text( * node 1*/),
-                                    Indent(1),
-                                ],
-                            ],
-                            Text(node1),
-                            Concat [
-                                Text( ),
-                                Text({),
-                                Concat [
-                                    Indent(2),
-                                    Concat [
-                                        Concat [
-                                            Concat [
-                                                Concat [
-                                                    Text(/* This),
-                                                    Indent(2),
-                                                    Text( * is),
-                                                    Indent(2),
-                                                    Text( * node2*/),
-                                                    Indent(2),
-                                                ],
-                                            ],
-                                            Text(node2),
-                                            Concat [
-                                                Text( ),
-                                                Text({),
-                                                Text(}),
-                                                Text(;),
-                                            ],
-                                        ],
-                                    ],
-                                ],
-                                Indent(1),
-                                Text(}),
-                                Text(;),
-                            ],
-                        ],
-                    ],
-                ],
-                Indent(0),
-                Text(}),
-                Text(;),
-            ],
-        ],
-    ]
-    "#)
 }
