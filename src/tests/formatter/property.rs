@@ -14,30 +14,15 @@ fn format_boolean_property() {
     ");
     assert_debug_snapshot!(format, @r"
     Concat [
-        Concat [
-            Concat [],
-            Text(/),
-            Concat [
-                Text( ),
-                Text({),
-                Concat [
-                    Indent(1),
-                    Concat [
-                        Concat [
-                            Concat [
-                                Text(hold-trigger-on-release),
-                                Text(;),
-                            ],
-                        ],
-                        Concat [],
-                    ],
-                ],
-                Indent(0),
-                Text(}),
-                Text(;),
-            ],
-            Concat [],
-        ],
+        Text(/),
+        Text( ),
+        Text({),
+        Indent(1),
+        Text(hold-trigger-on-release),
+        Text(;),
+        Indent(0),
+        Text(}),
+        Text(;),
     ]
     ")
 }
@@ -54,48 +39,25 @@ fn format_i32_array_property() {
     ");
     assert_debug_snapshot!(format, @r"
     Concat [
-        Concat [
-            Concat [],
-            Text(/),
-            Concat [
-                Text( ),
-                Text({),
-                Concat [
-                    Indent(1),
-                    Concat [
-                        Concat [
-                            Concat [
-                                Concat [],
-                                Text(arr),
-                                Text( ),
-                                Text(=),
-                                Text( ),
-                                Concat [
-                                    Concat [
-                                        Text(<),
-                                        Concat [
-                                            Text(1),
-                                            Text( ),
-                                            Text(2),
-                                            Text( ),
-                                            Text(3),
-                                        ],
-                                        Text(>),
-                                    ],
-                                ],
-                                Text(;),
-                                Concat [],
-                            ],
-                        ],
-                        Concat [],
-                    ],
-                ],
-                Indent(0),
-                Text(}),
-                Text(;),
-            ],
-            Concat [],
-        ],
+        Text(/),
+        Text( ),
+        Text({),
+        Indent(1),
+        Text(arr),
+        Text( ),
+        Text(=),
+        Text( ),
+        Text(<),
+        Text(1),
+        Text( ),
+        Text(2),
+        Text( ),
+        Text(3),
+        Text(>),
+        Text(;),
+        Indent(0),
+        Text(}),
+        Text(;),
     ]
     ")
 }
@@ -112,38 +74,19 @@ fn format_string_property() {
     "#);
     assert_debug_snapshot!(format, @r#"
     Concat [
-        Concat [
-            Concat [],
-            Text(/),
-            Concat [
-                Text( ),
-                Text({),
-                Concat [
-                    Indent(1),
-                    Concat [
-                        Concat [
-                            Concat [
-                                Concat [],
-                                Text(label),
-                                Text( ),
-                                Text(=),
-                                Text( ),
-                                Concat [
-                                    Text("BT_2"),
-                                ],
-                                Text(;),
-                                Concat [],
-                            ],
-                        ],
-                        Concat [],
-                    ],
-                ],
-                Indent(0),
-                Text(}),
-                Text(;),
-            ],
-            Concat [],
-        ],
+        Text(/),
+        Text( ),
+        Text({),
+        Indent(1),
+        Text(label),
+        Text( ),
+        Text(=),
+        Text( ),
+        Text("BT_2"),
+        Text(;),
+        Indent(0),
+        Text(}),
+        Text(;),
     ]
     "#)
 }

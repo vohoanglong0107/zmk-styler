@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{collections::LinkedList, fmt::Debug};
 
 /// Text Verbatim
 #[derive(Clone)]
@@ -10,7 +10,7 @@ pub(crate) struct Indent {
 }
 /// Concatination of Document nodes
 #[derive(Clone)]
-pub(crate) struct Concat(pub Vec<Format>);
+pub(crate) struct Concat(pub LinkedList<Format>);
 
 #[derive(Clone)]
 pub(crate) enum Format {
@@ -78,13 +78,18 @@ pub(super) fn indent(document: Format) -> Format {
 }
 
 /// Concatenates multi document
-pub(super) fn concat(documents: impl IntoIterator<Item = Format>) -> Format {
-    Format::Concat(Box::new(Concat(
-        documents
-            .into_iter()
-            .filter(|doc| !matches!(doc, Format::Nil))
-            .collect(),
-    )))
+pub(super) fn concat(formats: impl IntoIterator<Item = Format>) -> Format {
+    let mut combined = LinkedList::new();
+    for format in formats {
+        match format {
+            Format::Concat(mut sub_formats) => {
+                combined.append(&mut sub_formats.0);
+            }
+            Format::Nil => {}
+            _ => combined.push_back(format),
+        }
+    }
+    Format::Concat(Box::new(Concat(combined)))
 }
 
 pub(crate) fn nil() -> Format {
