@@ -17,7 +17,6 @@ fn debug_format(test_str: &str) -> Format {
 
 fn debug_formatted(test_str: &str) -> String {
     let document = debug_format(test_str);
-
     let mut writer = Writer::default();
     writer.write(document);
     writer.finish()

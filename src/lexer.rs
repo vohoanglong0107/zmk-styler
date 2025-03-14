@@ -269,6 +269,10 @@ impl Token {
         matches!(self.kind, TokenKind::S_COMMENT)
     }
 
+    pub(crate) fn is_block_comment(&self) -> bool {
+        matches!(self.kind, TokenKind::B_COMMENT)
+    }
+
     pub(crate) fn is_newline(&self) -> bool {
         matches!(self.kind, TokenKind::NEW_LINE)
     }

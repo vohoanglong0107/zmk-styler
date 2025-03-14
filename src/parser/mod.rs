@@ -35,10 +35,9 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub(super) fn expect(&mut self, kind: TokenKind) -> Result<(), ParseError> {
+    pub(super) fn expect(&mut self, kind: TokenKind) -> Result<Token, ParseError> {
         if self.at(kind) {
-            self.bump(kind);
-            Ok(())
+            Ok(self.bump(kind))
         } else {
             Err(ParseError::new(format!(
                 "Expected {kind}, but found {}",
@@ -71,11 +70,12 @@ impl<'src> Parser<'src> {
         token.kind == kind
     }
 
-    pub(super) fn bump(&mut self, kind: TokenKind) {
+    pub(super) fn bump(&mut self, kind: TokenKind) -> Token {
         let mut lexer = self.lexer.borrow_mut();
         let token = lexer.advance();
 
         assert_eq!(token.kind, kind);
+        token
     }
 
     pub(super) fn start(&self) -> SourceIndex {

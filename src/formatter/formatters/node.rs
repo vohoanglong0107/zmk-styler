@@ -1,9 +1,9 @@
 use crate::{
-    ast::{Identifier, Label, NodeBody, NodeBodyEntry, NodeDefinition},
+    ast::{AstNode, Identifier, Label, NodeBody, NodeBodyEntry, NodeDefinition},
     formatter::{
         rules::{
-            flush_comments_after, flush_comments_before, format_trailing_comments, indent, list,
-            new_line, nil, pair, separated_list, space, tag, text,
+            format_leading_trivia, format_trailing_trivia, indent, list, new_line, nil, pair,
+            separated_list, space, tag, text,
         },
         Format, FormatContext,
     },
@@ -13,11 +13,11 @@ use super::property::format_property;
 
 pub(crate) fn format_node(node: &NodeDefinition, f: &mut FormatContext) -> Format {
     let node_format = [
-        flush_comments_before(node, f.source, &mut f.trivia),
+        format_leading_trivia(node.range(), f.source, &mut f.trivia),
         format_label(node.label.as_ref(), f),
         format_identifier(&node.identifier, f),
         format_node_body(&node.body, f),
-        format_trailing_comments(node, f.source, &mut f.trivia),
+        format_trailing_trivia(node.range(), f.source, &mut f.trivia),
     ];
     list(node_format)
 }
@@ -52,7 +52,10 @@ fn format_node_body(body: &NodeBody, f: &mut FormatContext) -> Format {
         space(),
         tag("{"),
         if multiline {
-            indent(format_node_body_entries(&body.entries, f))
+            indent(pair(
+                format_node_body_entries(&body.entries, f),
+                format_leading_trivia(body.r_curly.range, f.source, &mut f.trivia),
+            ))
         } else {
             nil()
         },
@@ -69,7 +72,7 @@ fn format_node_body_entries(entries: &[NodeBodyEntry], f: &mut FormatContext) ->
         let sep = if pos != num_entries - 1 {
             new_line()
         } else {
-            flush_comments_after(entry, f.source, &mut f.trivia)
+            nil()
         };
         formatted.push(match entry {
             NodeBodyEntry::Node(node) => format_node(node, f),

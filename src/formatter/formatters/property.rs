@@ -1,12 +1,12 @@
 use crate::{
     ast::{
-        ArrayCell, ArrayValue, BoolPropertyDefinition, NonBoolPropertyDefinition,
+        ArrayCell, ArrayValue, AstNode, BoolPropertyDefinition, NonBoolPropertyDefinition,
         PropertyDefinition, PropertyValue, PropertyValues, StringValue,
     },
     formatter::{
         rules::{
-            flush_comments_before, format_trailing_comments, list, nil, pair, separated_list,
-            space, tag, text,
+            format_leading_trivia, format_trailing_trivia, list, nil, pair, separated_list, space,
+            tag, text,
         },
         Format, FormatContext,
     },
@@ -25,14 +25,14 @@ fn format_bool_property(prop: &BoolPropertyDefinition, f: &FormatContext) -> For
 
 fn format_non_bool_property(prop: &NonBoolPropertyDefinition, f: &mut FormatContext) -> Format {
     list([
-        flush_comments_before(prop, f.source, &mut f.trivia),
+        format_leading_trivia(prop.range(), f.source, &mut f.trivia),
         text(&prop.name, f.source),
         space(),
         tag("="),
         space(),
         format_property_values(&prop.values, f),
         tag(";"),
-        format_trailing_comments(prop, f.source, &mut f.trivia),
+        format_trailing_trivia(prop.range(), f.source, &mut f.trivia),
     ])
 }
 

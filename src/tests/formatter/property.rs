@@ -24,8 +24,10 @@ fn format_boolean_property() {
                     Indent(1),
                     Concat [
                         Concat [
-                            Text(hold-trigger-on-release),
-                            Text(;),
+                            Concat [
+                                Text(hold-trigger-on-release),
+                                Text(;),
+                            ],
                         ],
                         Concat [],
                     ],
@@ -62,26 +64,28 @@ fn format_i32_array_property() {
                     Indent(1),
                     Concat [
                         Concat [
-                            Concat [],
-                            Text(arr),
-                            Text( ),
-                            Text(=),
-                            Text( ),
                             Concat [
+                                Concat [],
+                                Text(arr),
+                                Text( ),
+                                Text(=),
+                                Text( ),
                                 Concat [
-                                    Text(<),
                                     Concat [
-                                        Text(1),
-                                        Text( ),
-                                        Text(2),
-                                        Text( ),
-                                        Text(3),
+                                        Text(<),
+                                        Concat [
+                                            Text(1),
+                                            Text( ),
+                                            Text(2),
+                                            Text( ),
+                                            Text(3),
+                                        ],
+                                        Text(>),
                                     ],
-                                    Text(>),
                                 ],
+                                Text(;),
+                                Concat [],
                             ],
-                            Text(;),
-                            Concat [],
                         ],
                         Concat [],
                     ],
@@ -118,16 +122,18 @@ fn format_string_property() {
                     Indent(1),
                     Concat [
                         Concat [
-                            Concat [],
-                            Text(label),
-                            Text( ),
-                            Text(=),
-                            Text( ),
                             Concat [
-                                Text("BT_2"),
+                                Concat [],
+                                Text(label),
+                                Text( ),
+                                Text(=),
+                                Text( ),
+                                Concat [
+                                    Text("BT_2"),
+                                ],
+                                Text(;),
+                                Concat [],
                             ],
-                            Text(;),
-                            Concat [],
                         ],
                         Concat [],
                     ],

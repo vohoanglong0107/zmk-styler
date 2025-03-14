@@ -1,4 +1,4 @@
-use crate::source::SourceRange;
+use crate::{lexer::Token, source::SourceRange};
 
 pub(crate) trait AstNode {
     fn range(&self) -> SourceRange;
@@ -61,7 +61,9 @@ pub(crate) struct RootNodeIdentifier {
 
 #[derive(Debug)]
 pub(crate) struct NodeBody {
+    pub(crate) l_curly: Token,
     pub(crate) entries: Vec<NodeBodyEntry>,
+    pub(crate) r_curly: Token,
     pub(crate) range: SourceRange,
 }
 

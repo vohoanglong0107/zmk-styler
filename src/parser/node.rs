@@ -87,12 +87,14 @@ fn parse_node_address(p: &mut Parser) -> Result<Option<NodeAddress>, ParseError>
 
 fn parse_node_body(p: &mut Parser) -> Result<NodeBody, ParseError> {
     let start = p.start();
-    p.expect(TokenKind::L_CURLY)?;
+    let l_curly = p.expect(TokenKind::L_CURLY)?;
     let entries = parse_list(p, parse_node_body_entry, TokenKind::R_CURLY, None)?;
-    p.expect(TokenKind::R_CURLY)?;
+    let r_curly = p.expect(TokenKind::R_CURLY)?;
     p.expect(TokenKind::SEMICOLON)?;
     Ok(NodeBody {
+        l_curly,
         entries,
+        r_curly,
         range: p.end(start),
     })
 }

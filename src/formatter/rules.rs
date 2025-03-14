@@ -1,10 +1,6 @@
 use itertools::Itertools;
 
-use crate::{
-    ast::AstNode,
-    lexer::{Token, TokenKind},
-    source::SourceRange,
-};
+use crate::{ast::AstNode, lexer::Token, source::SourceRange};
 
 use super::{context::TriviaFormatContext, ir, Format, Source};
 
@@ -27,11 +23,6 @@ pub(crate) fn new_line() -> Format {
 
 pub(crate) fn space() -> Format {
     tag(" ")
-}
-
-/// New line without indent
-pub(crate) fn empty_new_line() -> Format {
-    tag("\n")
 }
 
 /// Indents the specified block by one level on a new line
@@ -62,57 +53,40 @@ pub(crate) fn nil() -> Format {
     ir::nil()
 }
 
-pub(crate) fn flush_comments_before<T: AstNode>(
-    node: &T,
+pub(crate) fn format_leading_trivia(
+    range: SourceRange,
     source: &Source,
     trivia_context: &mut TriviaFormatContext,
 ) -> Format {
-    let trivia = trivia_context.format_leading_trivia(node);
+    let trivia = trivia_context.leading_trivia(range);
     list(
         trivia
             .into_iter()
-            // Format white space and new line too
-            .filter(|token| token.is_comment())
-            .map(|trivia_token| format_comment(trivia_token, source)),
+            .map(|trivia_token| format_trivia(trivia_token, source)),
     )
 }
 
-pub(crate) fn format_trailing_comments<T: AstNode>(
-    node: &T,
+pub(crate) fn format_trailing_trivia(
+    range: SourceRange,
     source: &Source,
     trivia_context: &mut TriviaFormatContext,
 ) -> Format {
-    let trivia = trivia_context.format_trailing_trivia(node);
+    let trivia = trivia_context.trailing_trivia(range);
     list(
         trivia
             .into_iter()
-            // Format white space and new line too
-            .filter(|token| token.is_comment())
-            .map(|trivia_token| format_comment(trivia_token, source)),
+            .map(|trivia_token| format_trivia(trivia_token, source)),
     )
 }
 
-pub(crate) fn flush_comments_after<T: AstNode>(
-    node: &T,
-    source: &Source,
-    trivia_context: &mut TriviaFormatContext,
-) -> Format {
-    let trivia = trivia_context.flush_trivia_after(node);
-    list(
-        trivia
-            .into_iter()
-            // Format white space and new line too
-            .filter(|token| token.is_comment())
-            .map(|trivia_token| format_comment(trivia_token, source)),
-    )
-}
-
-fn format_comment(token: Token, source: &Source) -> Format {
+fn format_trivia(token: Token, source: &Source) -> Format {
     let comment_text = text_from_range(token.range, source);
     if token.is_single_line_comment() {
         format_single_line_comment(comment_text)
-    } else {
+    } else if token.is_block_comment() {
         format_block_comment(comment_text)
+    } else {
+        nil()
     }
 }
 
