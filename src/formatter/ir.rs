@@ -3,12 +3,15 @@ use std::{collections::LinkedList, fmt::Debug};
 /// Text Verbatim
 #[derive(Clone)]
 pub(crate) struct Text(pub String);
+
 /// Indented block of text
 #[derive(Clone)]
 pub(crate) struct Indent {
     pub(super) level: u32,
+    pub(super) by_user: bool,
 }
-/// Concatination of Document nodes
+
+/// Concatination of Format nodes
 #[derive(Clone)]
 pub(crate) struct Concat(pub LinkedList<Format>);
 
@@ -55,7 +58,17 @@ pub(super) fn text(text: impl ToString) -> Format {
 }
 
 pub(super) fn new_line() -> Format {
-    Format::Indent(Box::new(Indent { level: 0 }))
+    Format::Indent(Box::new(Indent {
+        level: 0,
+        by_user: false,
+    }))
+}
+
+pub(super) fn user_placed_new_line() -> Format {
+    Format::Indent(Box::new(Indent {
+        level: 0,
+        by_user: true,
+    }))
 }
 
 /// Increases the indent level of the specified block
@@ -66,18 +79,19 @@ pub(super) fn indent(document: Format) -> Format {
         // nest i (nest j x) = nest (i + j) x
         Format::Indent(indented) => Format::Indent(Box::new(Indent {
             level: indented.level + 1,
+            by_user: indented.by_user,
         })),
         // nest i (x <> y) = nest i x <> nest i y
-        Format::Concat(docs) => {
-            let docs = docs.0.into_iter().map(indent).collect();
-            Format::Concat(Box::new(Concat(docs)))
+        Format::Concat(formats) => {
+            let formats = formats.0.into_iter().map(indent).collect();
+            Format::Concat(Box::new(Concat(formats)))
         }
         // nest i nil = nil
         Format::Nil => Format::Nil,
     }
 }
 
-/// Concatenates multi document
+/// Concatenates multi sub formats
 pub(super) fn concat(formats: impl IntoIterator<Item = Format>) -> Format {
     let mut combined = LinkedList::new();
     for format in formats {
@@ -105,30 +119,30 @@ mod test {
     /// nest i (text s) = text s
     #[test]
     fn nest_text_eq_text() {
-        let doc = indent(indent(indent(text("abc".to_string()))));
-        let Format::Text(doc) = doc else {
-            panic!("This test doc must be a text {:#?}", doc);
+        let format = indent(indent(indent(text("abc".to_string()))));
+        let Format::Text(fomat) = format else {
+            panic!("This test format must be a text {:#?}", format);
         };
-        assert_eq!(doc.0, "abc")
+        assert_eq!(fomat.0, "abc")
     }
 
     /// i ‘Line‘ x = nest i line <> x
     #[test]
     fn nest_line_eq_nest() {
-        let doc = indent(new_line());
-        let Format::Indent(doc) = doc else {
-            panic!("This test doc must be an indent {:#?}", doc);
+        let format = indent(new_line());
+        let Format::Indent(format) = format else {
+            panic!("This test format must be an indent {:#?}", format);
         };
-        assert_eq!(doc.level, 1)
+        assert_eq!(format.level, 1)
     }
 
     /// nest i (nest j x) = nest (i + j) x
     #[test]
     fn nest_line_eq_bigger_nest() {
-        let doc = indent(indent(indent(new_line())));
-        let Format::Indent(doc) = doc else {
-            panic!("This test doc must be an indent {:#?}", doc);
+        let format = indent(indent(indent(new_line())));
+        let Format::Indent(format) = format else {
+            panic!("This test format must be an indent {:#?}", format);
         };
-        assert_eq!(doc.level, 3)
+        assert_eq!(format.level, 3)
     }
 }

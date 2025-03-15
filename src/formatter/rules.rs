@@ -2,7 +2,11 @@ use itertools::Itertools;
 
 use crate::{ast::AstNode, lexer::Token, source::SourceRange};
 
-use super::{context::TriviaFormatContext, ir, Format, Source};
+use super::{
+    context::TriviaFormatContext,
+    ir::{self, user_placed_new_line},
+    Format, Source,
+};
 
 /// Write node's content as it is.
 pub(crate) fn text<T: AstNode>(node: &T, source: &Source) -> Format {
@@ -19,6 +23,11 @@ pub(crate) fn tag(text: impl ToString) -> Format {
 /// New line with indentation at current ident level
 pub(crate) fn new_line() -> Format {
     ir::new_line()
+}
+
+/// New line without indent
+pub(crate) fn empty_new_line() -> Format {
+    tag("\n")
 }
 
 pub(crate) fn space() -> Format {
@@ -85,6 +94,8 @@ fn format_trivia(token: Token, source: &Source) -> Format {
         format_single_line_comment(comment_text)
     } else if token.is_block_comment() {
         format_block_comment(comment_text)
+    } else if token.is_newline() {
+        user_placed_new_line()
     } else {
         nil()
     }

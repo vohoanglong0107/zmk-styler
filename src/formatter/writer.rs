@@ -1,4 +1,6 @@
-use super::{config::Config, ir::Format};
+use std::collections::LinkedList;
+
+use super::{config::Config, ir::Format, rules::empty_new_line};
 
 #[derive(Default)]
 pub(crate) struct Writer {
@@ -23,7 +25,10 @@ impl Writer {
                 }
             }
             // Pre-order traversal
-            Format::Concat(subnodes) => subnodes.0.into_iter().for_each(|doc| self.write(doc)),
+            Format::Concat(subnodes) => {
+                let formalized = formalize_new_lines(subnodes.0);
+                formalized.into_iter().for_each(|format| self.write(format));
+            }
 
             Format::Nil => {}
         }
@@ -32,6 +37,37 @@ impl Writer {
     pub(crate) fn finish(&self) -> String {
         self.buffer.clone()
     }
+}
+
+fn formalize_new_lines(formats: LinkedList<Format>) -> Vec<Format> {
+    let mut formalized = Vec::new();
+    let mut iter = formats.into_iter();
+    let mut format = iter.next();
+    while format.is_some() {
+        let mut continuous_trivia = Vec::new();
+        while let Some(Format::Indent(indented)) = format {
+            continuous_trivia.push(indented);
+            format = iter.next();
+        }
+        // If user placed more than 2 consecutive new lines, preserve only 2 new lines
+        if continuous_trivia
+            .iter()
+            .filter(|trivia| trivia.by_user)
+            .count()
+            > 1
+        {
+            let last = continuous_trivia.pop().unwrap();
+            formalized.push(empty_new_line());
+            formalized.push(Format::Indent(last));
+        } else if let Some(indented) = continuous_trivia.pop() {
+            formalized.push(Format::Indent(indented));
+        }
+        if let Some(format) = format {
+            formalized.push(format);
+        }
+        format = iter.next();
+    }
+    formalized
 }
 
 #[cfg(test)]
