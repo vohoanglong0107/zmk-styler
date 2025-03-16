@@ -3,8 +3,7 @@ use itertools::Itertools;
 use crate::{ast::AstNode, lexer::Token, source::SourceRange};
 
 use super::{
-    context::TriviaFormatContext,
-    ir::{self, user_placed_new_line},
+    ir::{self},
     Format, Source,
 };
 
@@ -62,50 +61,51 @@ pub(crate) fn nil() -> Format {
     ir::nil()
 }
 
-pub(crate) fn format_leading_trivia(
-    range: SourceRange,
-    source: &Source,
-    trivia_context: &mut TriviaFormatContext,
-) -> Format {
-    let trivia = trivia_context.leading_trivia(range);
-    list(
-        trivia
-            .into_iter()
-            .map(|trivia_token| format_trivia(trivia_token, source)),
-    )
+pub(crate) fn format_leading_trivia(trivia: Vec<Token>, source: &Source) -> Format {
+    list(trivia.into_iter().map(|token| {
+        let comment_text = text_from_range(token.range, source);
+        if token.is_single_line_comment() {
+            format_single_line_comment(comment_text)
+        } else if token.is_block_comment() {
+            let (format, multiline) = format_block_comment(comment_text);
+            if multiline {
+                pair(format, new_line())
+            } else {
+                pair(format, space())
+            }
+        } else if token.is_newline() {
+            ir::user_placed_new_line()
+        } else {
+            nil()
+        }
+    }))
 }
 
-pub(crate) fn format_trailing_trivia(
-    range: SourceRange,
-    source: &Source,
-    trivia_context: &mut TriviaFormatContext,
-) -> Format {
-    let trivia = trivia_context.trailing_trivia(range);
-    list(
-        trivia
-            .into_iter()
-            .map(|trivia_token| format_trivia(trivia_token, source)),
-    )
-}
-
-fn format_trivia(token: Token, source: &Source) -> Format {
-    let comment_text = text_from_range(token.range, source);
-    if token.is_single_line_comment() {
-        format_single_line_comment(comment_text)
-    } else if token.is_block_comment() {
-        format_block_comment(comment_text)
-    } else if token.is_newline() {
-        user_placed_new_line()
-    } else {
-        nil()
-    }
+pub(crate) fn format_trailing_trivia(trivia: Vec<Token>, source: &Source) -> Format {
+    list(trivia.into_iter().map(|token| {
+        let comment_text = text_from_range(token.range, source);
+        if token.is_single_line_comment() {
+            pair(space(), format_single_line_comment(comment_text))
+        } else if token.is_block_comment() {
+            let (format, multiline) = format_block_comment(comment_text);
+            if multiline {
+                list([space(), format, new_line()])
+            } else {
+                pair(space(), format)
+            }
+        } else if token.is_newline() {
+            ir::user_placed_new_line()
+        } else {
+            nil()
+        }
+    }))
 }
 
 fn format_single_line_comment(comment: &str) -> Format {
     pair(ir::text(comment), new_line())
 }
 
-fn format_block_comment(comment: &str) -> Format {
+fn format_block_comment(comment: &str) -> (Format, bool) {
     let comment_lines = comment.lines().collect_vec();
     let multiline = comment_lines.len() > 1;
     let mut formatted_comment_lines = Vec::new();
@@ -123,13 +123,7 @@ fn format_block_comment(comment: &str) -> Format {
             formatted_comment_lines.push(ir::text(line));
         }
     }
-    // TODO: properly handling spacing and new line
-    if multiline {
-        formatted_comment_lines.push(new_line());
-    } else {
-        formatted_comment_lines.push(space());
-    }
-    list(formatted_comment_lines)
+    (list(formatted_comment_lines), multiline)
 }
 
 fn text_from_range<'src>(range: SourceRange, source: &'src Source) -> &'src str {

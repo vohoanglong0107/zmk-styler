@@ -59,7 +59,9 @@ fn formalize_new_lines(formats: LinkedList<Format>) -> Vec<Format> {
             let last = continuous_trivia.pop().unwrap();
             formalized.push(empty_new_line());
             formalized.push(Format::Indent(last));
-        } else if let Some(indented) = continuous_trivia.pop() {
+        }
+        // Else preserve only one newline
+        else if let Some(indented) = continuous_trivia.pop() {
             formalized.push(Format::Indent(indented));
         }
         if let Some(format) = format {

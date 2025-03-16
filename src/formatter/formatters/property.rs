@@ -25,14 +25,14 @@ fn format_bool_property(prop: &BoolPropertyDefinition, f: &FormatContext) -> For
 
 fn format_non_bool_property(prop: &NonBoolPropertyDefinition, f: &mut FormatContext) -> Format {
     list([
-        format_leading_trivia(prop.range(), f.source, &mut f.trivia),
+        format_leading_trivia(f.trivia.leading_trivia(prop.range()), f.source),
         text(&prop.name, f.source),
         space(),
         tag("="),
         space(),
         format_property_values(&prop.values, f),
         tag(";"),
-        format_trailing_trivia(prop.range(), f.source, &mut f.trivia),
+        format_trailing_trivia(f.trivia.trailing_trivia(prop.range()), f.source),
     ])
 }
 

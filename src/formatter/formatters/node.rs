@@ -13,11 +13,11 @@ use super::property::format_property;
 
 pub(crate) fn format_node(node: &NodeDefinition, f: &mut FormatContext) -> Format {
     let node_format = [
-        format_leading_trivia(node.range(), f.source, &mut f.trivia),
+        format_leading_trivia(f.trivia.leading_trivia(node.range()), f.source),
         format_label(node.label.as_ref(), f),
         format_identifier(&node.identifier, f),
         format_node_body(&node.body, f),
-        format_trailing_trivia(node.range(), f.source, &mut f.trivia),
+        format_trailing_trivia(f.trivia.trailing_trivia(node.range()), f.source),
     ];
     list(node_format)
 }
@@ -54,7 +54,7 @@ fn format_node_body(body: &NodeBody, f: &mut FormatContext) -> Format {
         if multiline {
             indent(pair(
                 format_node_body_entries(&body.entries, f),
-                format_leading_trivia(body.r_curly.range, f.source, &mut f.trivia),
+                format_leading_trivia(f.trivia.leading_trivia(body.r_curly.range), f.source),
             ))
         } else {
             nil()
