@@ -33,27 +33,28 @@ pub(crate) fn space() -> Format {
     tag(" ")
 }
 
-/// Indents the specified block by one level on a new line
-pub(crate) fn indent(doc: Format) -> Format {
-    ir::indent(ir::concat([new_line(), doc]))
-}
-
 /// Concatenates a list of formatted text, separated by a specified separator
 pub(crate) fn separated_list(
-    documents: impl IntoIterator<Item = Format>,
+    formats: impl IntoIterator<Item = Format>,
     separator: Format,
 ) -> Format {
-    ir::concat(itertools::intersperse(documents, separator))
+    ir::concat(itertools::intersperse(formats, separator))
 }
 
 /// Concatenates a list of formatted text
-pub(crate) fn list(documents: impl IntoIterator<Item = Format>) -> Format {
-    ir::concat(documents)
+pub(crate) fn list(formats: impl IntoIterator<Item = Format>) -> Format {
+    ir::concat(formats)
 }
 
 /// Concatenates two formated text
 pub(crate) fn pair(first: Format, second: Format) -> Format {
     list([first, second])
+}
+
+/// Group all formatted text on a single line
+/// Or break them to multiple lines
+pub(crate) fn group(formats: impl IntoIterator<Item = Format>) -> Format {
+    ir::group(formats)
 }
 
 /// Do nothing
@@ -74,7 +75,7 @@ pub(crate) fn format_leading_trivia(trivia: Vec<Token>, source: &Source) -> Form
                 pair(format, space())
             }
         } else if token.is_newline() {
-            ir::user_placed_new_line()
+            ir::text_break(0, ir::TextBreakKind::Discretion)
         } else {
             nil()
         }
@@ -94,7 +95,7 @@ pub(crate) fn format_trailing_trivia(trivia: Vec<Token>, source: &Source) -> For
                 pair(space(), format)
             }
         } else if token.is_newline() {
-            ir::user_placed_new_line()
+            ir::text_break(0, ir::TextBreakKind::Discretion)
         } else {
             nil()
         }

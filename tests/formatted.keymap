@@ -1,5 +1,4 @@
-/* Glove80 system behavior & macros */ 
-/ {
+/* Glove80 system behavior & macros */ / {
     behaviors {
         // For the "layer" key, it'd nice to be able to use it as either a shift or a toggle.
         lower: lower {

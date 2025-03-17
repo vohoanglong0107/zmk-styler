@@ -8,7 +8,7 @@ use crate::{
         PropertyDefinition, PropertyName, PropertyValue, PropertyValues, Statement, StringValue,
     },
     formatter::{
-        rules::{indent, list, new_line, nil, pair, separated_list, tag, text},
+        rules::{list, new_line, nil, pair, separated_list, tag, text},
         Format, FormatContext, Writer,
     },
     parser::parse,

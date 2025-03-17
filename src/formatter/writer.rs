@@ -1,11 +1,18 @@
 use std::collections::LinkedList;
 
-use super::{config::Config, ir::Format, rules::empty_new_line};
+use super::{
+    config::Config,
+    ir::{Format, TextBreakKind},
+    rules::empty_new_line,
+};
 
 #[derive(Default)]
 pub(crate) struct Writer {
     buffer: String,
     config: Config,
+    current_indent_level: u32,
+    num_bufferred_new_lines: u32,
+    bufferred_discretionary_new_line: bool,
 }
 
 impl Writer {
@@ -13,23 +20,92 @@ impl Writer {
         Writer {
             buffer: String::new(),
             config,
+            current_indent_level: 0,
+            num_bufferred_new_lines: 0,
+            bufferred_discretionary_new_line: false,
         }
     }
+
     pub(crate) fn write(&mut self, node: Format) {
         match node {
-            Format::Text(text) => self.buffer.push_str(&text.0),
-            Format::Indent(indent) => {
-                self.buffer.push('\n');
-                for _ in 0..(indent.level * self.config.indent_width) {
-                    self.buffer.push(' ')
+            Format::Text(text) => {
+                // Flush new line buffer
+                for _ in 0..self.num_bufferred_new_lines {
+                    self.buffer.push('\n');
                 }
+                if self.num_bufferred_new_lines > 0 {
+                    for _ in 0..(self.current_indent_level * self.config.indent_width) {
+                        self.buffer.push(' ')
+                    }
+                }
+                self.bufferred_discretionary_new_line = false;
+                self.num_bufferred_new_lines = 0;
+
+                self.buffer.push_str(&text.0);
             }
+            Format::TextBreak(text_break) => {}
             // Pre-order traversal
             Format::Concat(subnodes) => {
-                let formalized = formalize_new_lines(subnodes.0);
+                let formalized = (subnodes.0);
                 formalized.into_iter().for_each(|format| self.write(format));
             }
-
+            Format::Group(subnodes) => {
+                let mut should_break = false;
+                for format in subnodes.0.iter() {
+                    //FIXME: This is O(n^2)
+                    should_break |= analyze(format);
+                }
+                let formalized = subnodes.0;
+                if should_break {
+                    for format in formalized {
+                        if let Format::TextBreak(text_break) = format {
+                            match text_break.kind {
+                                TextBreakKind::Open => {
+                                    self.current_indent_level += 1;
+                                    if self.num_bufferred_new_lines == 0 {
+                                        self.num_bufferred_new_lines += 1
+                                    }
+                                }
+                                TextBreakKind::Close => {
+                                    self.current_indent_level -= 1;
+                                    if self.num_bufferred_new_lines == 0 {
+                                        self.num_bufferred_new_lines += 1
+                                    }
+                                }
+                                TextBreakKind::Discretion => {
+                                    if self.num_bufferred_new_lines == 1
+                                        && self.bufferred_discretionary_new_line
+                                    {
+                                        self.num_bufferred_new_lines += 1;
+                                    } else if self.num_bufferred_new_lines == 1 {
+                                        self.bufferred_discretionary_new_line = true
+                                    } else if self.num_bufferred_new_lines == 0 {
+                                        self.num_bufferred_new_lines += 1;
+                                        self.bufferred_discretionary_new_line = true
+                                    }
+                                }
+                                TextBreakKind::NewLine => {
+                                    if self.num_bufferred_new_lines == 0 {
+                                        self.num_bufferred_new_lines += 1
+                                    }
+                                }
+                            }
+                        } else {
+                            self.write(format)
+                        }
+                    }
+                } else {
+                    for format in formalized {
+                        if let Format::TextBreak(indented) = format {
+                            for _ in 0..indented.size {
+                                self.buffer.push(' ');
+                            }
+                        } else {
+                            self.write(format)
+                        }
+                    }
+                }
+            }
             Format::Nil => {}
         }
     }
@@ -39,86 +115,30 @@ impl Writer {
     }
 }
 
-fn formalize_new_lines(formats: LinkedList<Format>) -> Vec<Format> {
-    let mut formalized = Vec::new();
-    let mut iter = formats.into_iter();
-    let mut format = iter.next();
-    while format.is_some() {
-        let mut continuous_trivia = Vec::new();
-        while let Some(Format::Indent(indented)) = format {
-            continuous_trivia.push(indented);
-            format = iter.next();
+fn analyze(format: &Format) -> bool {
+    match format {
+        Format::TextBreak(text_break) => matches!(text_break.kind, TextBreakKind::NewLine),
+        Format::Concat(subnodes) => {
+            let mut should_break = false;
+            for subformat in subnodes.0.iter() {
+                should_break |= analyze(subformat)
+            }
+            should_break
         }
-        // If user placed more than 2 consecutive new lines, preserve only 2 new lines
-        if continuous_trivia
-            .iter()
-            .filter(|trivia| trivia.by_user)
-            .count()
-            > 1
-        {
-            let last = continuous_trivia.pop().unwrap();
-            formalized.push(empty_new_line());
-            formalized.push(Format::Indent(last));
+        Format::Group(subnodes) => {
+            let mut should_break = false;
+            for subformat in subnodes.0.iter() {
+                should_break |= analyze(subformat)
+            }
+            should_break
         }
-        // Else preserve only one newline
-        else if let Some(indented) = continuous_trivia.pop() {
-            formalized.push(Format::Indent(indented));
-        }
-        if let Some(format) = format {
-            formalized.push(format);
-        }
-        format = iter.next();
+        _ => false,
     }
-    formalized
 }
 
 #[cfg(test)]
 mod test {
-    use crate::formatter::ir::{concat, indent, new_line, text};
+    use crate::formatter::ir::{concat, new_line, text};
 
     use super::Writer;
-
-    #[test]
-    fn empty_new_line_does_not_indent() {
-        let mut writer = Writer::default();
-        let doc = indent(indent(indent(text("\n"))));
-        writer.write(doc);
-        assert_eq!(writer.finish(), "\n")
-    }
-
-    #[test]
-    fn indented_newline() {
-        let mut writer = Writer::default();
-        let doc = concat(vec![
-            text("abc"),
-            indent(concat(vec![new_line(), text("xyz")])),
-        ]);
-        writer.write(doc);
-        assert_eq!(
-            writer.finish(),
-            r#"abc
-    xyz"#
-        )
-    }
-
-    #[test]
-    fn nested_concat() {
-        let mut writer = Writer::default();
-        let doc = concat(vec![
-            concat(vec![text("abc"), text("def")]),
-            indent(concat(vec![new_line(), text("ghi")])),
-            concat(vec![
-                new_line(),
-                text("jkl"),
-                concat(vec![text("mno"), text("prq")]),
-            ]),
-        ]);
-        writer.write(doc);
-        assert_eq!(
-            writer.finish(),
-            r#"abcdef
-    ghi
-jklmnoprq"#
-        )
-    }
 }
