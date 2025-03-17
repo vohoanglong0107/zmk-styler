@@ -23,6 +23,5 @@ pub(crate) fn format(doc: Document, source: &Source, token_source: TokenSource) 
 
     let config = Config::default();
     let mut writer = Writer::new(config);
-    writer.write(format);
-    writer.finish()
+    writer.write(format)
 }

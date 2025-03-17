@@ -24,11 +24,6 @@ pub(crate) fn new_line() -> Format {
     ir::new_line()
 }
 
-/// New line without indent
-pub(crate) fn empty_new_line() -> Format {
-    tag("\n")
-}
-
 pub(crate) fn space() -> Format {
     tag(" ")
 }

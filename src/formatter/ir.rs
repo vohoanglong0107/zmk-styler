@@ -38,9 +38,9 @@ pub(crate) struct Group(pub LinkedList<Format>);
 #[derive(Clone)]
 pub(crate) enum Format {
     Text(Text),
-    TextBreak(Box<TextBreak>),
-    Concat(Box<Concat>),
-    Group(Box<Group>),
+    TextBreak(TextBreak),
+    Concat(Concat),
+    Group(Group),
     Nil,
 }
 
@@ -87,25 +87,25 @@ pub(super) fn text(text: impl ToString) -> Format {
 }
 
 pub(super) fn text_break(size: u32, kind: TextBreakKind) -> Format {
-    Format::TextBreak(Box::new(TextBreak { size, kind }))
+    Format::TextBreak(TextBreak { size, kind })
 }
 
 pub(super) fn new_line() -> Format {
-    Format::TextBreak(Box::new(TextBreak {
+    Format::TextBreak(TextBreak {
         size: 0,
         kind: TextBreakKind::NewLine,
-    }))
+    })
 }
 
 /// Concatenates multi sub formats
 pub(super) fn concat(formats: impl IntoIterator<Item = Format>) -> Format {
-    Format::Concat(Box::new(Concat(expand_concatenated_concat(formats))))
+    Format::Concat(Concat(expand_concatenated_concat(formats)))
 }
 
 /// Group all formatted text on a single line
 /// Or break them to multiple lines
 pub(super) fn group(formats: impl IntoIterator<Item = Format>) -> Format {
-    Format::Group(Box::new(Group(expand_concatenated_concat(formats))))
+    Format::Group(Group(expand_concatenated_concat(formats)))
 }
 
 fn expand_concatenated_concat(formats: impl IntoIterator<Item = Format>) -> LinkedList<Format> {
