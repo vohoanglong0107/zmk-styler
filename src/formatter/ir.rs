@@ -16,6 +16,8 @@ pub(crate) struct TextBreak {
 pub(crate) enum TextBreakKind {
     /// Increase the indent level by one
     Open,
+    /// Keep the indentation level
+    Same,
     /// Lower the indent level by one
     Close,
     /// Must break to a new line, while keeping the indentation level
@@ -50,7 +52,7 @@ impl Debug for Text {
 
 impl Debug for TextBreak {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Indent({},{:?})", self.size, self.kind)
+        write!(f, "TextBreak({},{:?})", self.size, self.kind)
     }
 }
 

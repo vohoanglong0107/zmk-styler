@@ -89,6 +89,11 @@ impl Writer {
                                         self.num_bufferred_new_lines += 1
                                     }
                                 }
+                                TextBreakKind::Same => {
+                                    if self.num_bufferred_new_lines == 0 {
+                                        self.num_bufferred_new_lines += 1
+                                    }
+                                }
                             }
                         } else {
                             self.write(format)

@@ -53,12 +53,13 @@ fn format_block_comments() {
         /* This is a label */label = "BT_2"; /* End of label */
 
         /* This is
-         * node 1*/
-        node1 {
+         * node 1*/ node1 {
             /* This
              * is
              * node2*/
             node2 {}; /* End */ /* of */ /* node2 */
+            node3 {}; /* End
+            of */ /* of */ /* node3 */
             /* End
              * Of
              * Node1
@@ -77,6 +78,11 @@ fn format_block_comments() {
              * is
              * node2*/
             node2 {}; /* End */ /* of */ /* node2 */
+            node3 {};
+            /* End
+             of */
+            /* of */
+            /* node3 */
             /* End
              * Of
              * Node1

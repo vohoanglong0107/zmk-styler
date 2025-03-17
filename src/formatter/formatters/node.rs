@@ -61,8 +61,7 @@ fn format_node_body(body: &NodeBody, f: &mut FormatContext) -> Format {
 
 fn format_node_body_entries(entries: &[NodeBodyEntry], f: &mut FormatContext) -> Format {
     let mut formatted = Vec::new();
-    let num_entries = entries.len();
-    for (pos, entry) in entries.iter().enumerate() {
+    for entry in entries.iter() {
         let sep = text_break(0, TextBreakKind::NewLine);
         formatted.push(match entry {
             NodeBodyEntry::Node(node) => format_node(node, f),

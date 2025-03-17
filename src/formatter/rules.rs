@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::{ast::AstNode, lexer::Token, source::SourceRange};
 
 use super::{
-    ir::{self},
+    ir::{self, text_break, TextBreakKind},
     Format, Source,
 };
 
@@ -63,17 +63,13 @@ pub(crate) fn nil() -> Format {
 }
 
 pub(crate) fn format_leading_trivia(trivia: Vec<Token>, source: &Source) -> Format {
-    list(trivia.into_iter().map(|token| {
+    group(trivia.into_iter().map(|token| {
         let comment_text = text_from_range(token.range, source);
         if token.is_single_line_comment() {
             format_single_line_comment(comment_text)
         } else if token.is_block_comment() {
-            let (format, multiline) = format_block_comment(comment_text);
-            if multiline {
-                pair(format, new_line())
-            } else {
-                pair(format, space())
-            }
+            let format = format_block_comment(comment_text);
+            pair(format, text_break(1, TextBreakKind::Same))
         } else if token.is_newline() {
             ir::text_break(0, ir::TextBreakKind::Discretion)
         } else {
@@ -83,17 +79,13 @@ pub(crate) fn format_leading_trivia(trivia: Vec<Token>, source: &Source) -> Form
 }
 
 pub(crate) fn format_trailing_trivia(trivia: Vec<Token>, source: &Source) -> Format {
-    list(trivia.into_iter().map(|token| {
+    group(trivia.into_iter().map(|token| {
         let comment_text = text_from_range(token.range, source);
         if token.is_single_line_comment() {
             pair(space(), format_single_line_comment(comment_text))
         } else if token.is_block_comment() {
-            let (format, multiline) = format_block_comment(comment_text);
-            if multiline {
-                list([space(), format, new_line()])
-            } else {
-                pair(space(), format)
-            }
+            let format = format_block_comment(comment_text);
+            pair(text_break(1, TextBreakKind::Same), format)
         } else if token.is_newline() {
             ir::text_break(0, ir::TextBreakKind::Discretion)
         } else {
@@ -106,9 +98,8 @@ fn format_single_line_comment(comment: &str) -> Format {
     pair(ir::text(comment), new_line())
 }
 
-fn format_block_comment(comment: &str) -> (Format, bool) {
+fn format_block_comment(comment: &str) -> Format {
     let comment_lines = comment.lines().collect_vec();
-    let multiline = comment_lines.len() > 1;
     let mut formatted_comment_lines = Vec::new();
     for line in comment_lines {
         if line.starts_with("/*") {
@@ -124,7 +115,7 @@ fn format_block_comment(comment: &str) -> (Format, bool) {
             formatted_comment_lines.push(ir::text(line));
         }
     }
-    (list(formatted_comment_lines), multiline)
+    list(formatted_comment_lines)
 }
 
 fn text_from_range<'src>(range: SourceRange, source: &'src Source) -> &'src str {
