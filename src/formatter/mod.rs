@@ -15,6 +15,8 @@ use formatters::format_document;
 
 pub(crate) use context::FormatContext;
 pub(crate) use ir::Format;
+#[cfg(test)]
+pub(crate) use ir::TextBreakKind;
 pub(crate) use writer::Writer;
 
 pub(crate) fn format(doc: Document, source: &Source, token_source: TokenSource) -> String {

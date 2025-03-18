@@ -4,7 +4,7 @@ use super::{
 };
 
 #[cfg(test)]
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::cell::Cell;
 
 #[derive(Default)]
 pub(crate) struct Writer {
@@ -57,7 +57,7 @@ impl Writer {
                     }
                 }
             }
-            WriteContext::Concat => todo!(),
+            WriteContext::Concat => self.new_line_tracker.buffer_new_line(),
         }
     }
 
@@ -160,11 +160,13 @@ impl Default for NewLineTracker {
 }
 
 #[cfg(test)]
-static ANALYZE_COUNTER: AtomicU32 = AtomicU32::new(0);
+thread_local! {
+    static COUNTER: Cell<usize> = const { Cell::new(0) };
+}
 
 fn analyze(format: &mut Format) -> bool {
     #[cfg(test)]
-    ANALYZE_COUNTER.fetch_add(1, Ordering::Relaxed);
+    COUNTER.with(|c| c.set(c.get() + 1));
 
     match format {
         Format::TextBreak(text_break) => matches!(text_break.kind, TextBreakKind::NewLine),
@@ -183,11 +185,9 @@ fn analyze(format: &mut Format) -> bool {
 
 #[cfg(test)]
 mod test {
-    use std::sync::atomic::Ordering;
-
     use crate::formatter::{
         rules::{group, tag},
-        writer::ANALYZE_COUNTER,
+        writer::COUNTER,
         Writer,
     };
 
@@ -198,8 +198,9 @@ mod test {
             test_format = group([test_format])
         }
         let mut writer = Writer::default();
+        COUNTER.with(|c| c.set(0));
         writer.write(test_format);
         // Don't need to be exact, just shouldn't be millions
-        assert_eq!(ANALYZE_COUNTER.load(Ordering::Relaxed), 1000)
+        COUNTER.with(|c| assert_eq!(c.get(), 1000));
     }
 }

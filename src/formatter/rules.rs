@@ -3,7 +3,7 @@ use itertools::Itertools;
 use crate::{ast::AstNode, lexer::Token, source::SourceRange};
 
 use super::{
-    ir::{self, text_break, TextBreakKind},
+    ir::{self, TextBreakKind},
     Format, Source,
 };
 
@@ -22,6 +22,10 @@ pub(crate) fn tag(text: impl ToString) -> Format {
 /// New line with indentation at current ident level
 pub(crate) fn new_line() -> Format {
     ir::new_line()
+}
+
+pub(crate) fn text_break(size: u32, kind: TextBreakKind) -> Format {
+    ir::text_break(size, kind)
 }
 
 pub(crate) fn space() -> Format {

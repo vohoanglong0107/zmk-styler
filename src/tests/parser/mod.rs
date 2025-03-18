@@ -8,8 +8,8 @@ use crate::{
         PropertyDefinition, PropertyName, PropertyValue, PropertyValues, Statement, StringValue,
     },
     formatter::{
-        rules::{list, new_line, nil, pair, separated_list, tag, text},
-        Format, FormatContext, Writer,
+        rules::{group, list, new_line, nil, pair, separated_list, tag, text, text_break},
+        Format, FormatContext, TextBreakKind, Writer,
     },
     parser::parse,
     source::Source,
@@ -21,8 +21,7 @@ fn debug_ast(test_str: &str) -> String {
         Ok((doc, comments)) => {
             let formatter = FormatContext::new(&source, comments);
             let mut writer = Writer::default();
-            writer.write(serialize_doc(doc, &formatter));
-            writer.finish()
+            writer.write(serialize_doc(doc, &formatter))
         }
         Err(e) => e.to_string(),
     }
@@ -33,7 +32,11 @@ fn serialize_doc(doc: Document, f: &FormatContext) -> Format {
         tag("Document@"),
         tag(doc.range()),
         tag("("),
-        indent(serialize_statements(doc.statements, f)),
+        group([
+            text_break(0, TextBreakKind::Open),
+            serialize_statements(doc.statements, f),
+            text_break(0, TextBreakKind::Close),
+        ]),
         new_line(),
         tag(")"),
     ])
@@ -57,11 +60,13 @@ fn serialize_node(node: NodeDefinition, f: &FormatContext) -> Format {
         tag("Node@"),
         tag(node.range),
         tag("("),
-        indent(list([
+        group([
+            text_break(0, TextBreakKind::Open),
             node.label.map_or(nil(), |label| serialize_label(label, f)),
             serialize_node_identifier(node.identifier, f),
             serialize_node_body(node.body, f),
-        ])),
+            text_break(0, TextBreakKind::Close),
+        ]),
         new_line(),
         tag(")"),
         tag(","),
@@ -101,7 +106,11 @@ fn serialize_node_body(node_body: NodeBody, f: &FormatContext) -> Format {
             text(&node_body, f.source)
         } else {
             pair(
-                indent(serialize_node_body_entries(node_body.entries, f)),
+                group([
+                    text_break(0, TextBreakKind::Open),
+                    serialize_node_body_entries(node_body.entries, f),
+                    text_break(0, TextBreakKind::Close),
+                ]),
                 new_line(),
             )
         },
@@ -138,7 +147,11 @@ fn serialize_bool_property(property: BoolPropertyDefinition, f: &FormatContext) 
         tag("BoolProperty@"),
         tag(property.range()),
         tag("("),
-        indent(serialize_property_name(property.name, f)),
+        list([
+            text_break(0, TextBreakKind::Open),
+            serialize_property_name(property.name, f),
+            text_break(0, TextBreakKind::Close),
+        ]),
         new_line(),
         tag(")"),
         tag(","),
@@ -150,11 +163,13 @@ fn serialize_non_bool_property(property: NonBoolPropertyDefinition, f: &FormatCo
         tag("NonBoolProperty@"),
         tag(property.range()),
         tag("("),
-        indent(list([
+        group([
+            text_break(0, TextBreakKind::Open),
             serialize_property_name(property.name, f),
             new_line(),
             serialize_property_values(property.values, f),
-        ])),
+            text_break(0, TextBreakKind::Close),
+        ]),
         new_line(),
         tag(")"),
         tag(","),
@@ -177,12 +192,16 @@ fn serialize_property_values(property_values: PropertyValues, f: &FormatContext)
         tag("PropertyValues@"),
         tag(property_values.range()),
         tag("("),
-        indent(separated_list(
-            property_values
-                .into_iter()
-                .map(|value| serialize_property_value(value, f)),
-            new_line(),
-        )),
+        list([
+            text_break(0, TextBreakKind::Open),
+            separated_list(
+                property_values
+                    .into_iter()
+                    .map(|value| serialize_property_value(value, f)),
+                new_line(),
+            ),
+            text_break(0, TextBreakKind::Close),
+        ]),
         new_line(),
         tag(")"),
         tag(","),
@@ -202,12 +221,16 @@ fn serialize_array(array: ArrayValue, f: &FormatContext) -> Format {
         tag("Array@"),
         tag(array.range()),
         tag("("),
-        indent(separated_list(
-            array
-                .into_iter()
-                .map(|value| serialize_array_cell(value, f)),
-            new_line(),
-        )),
+        group([
+            text_break(0, TextBreakKind::Open),
+            separated_list(
+                array
+                    .into_iter()
+                    .map(|value| serialize_array_cell(value, f)),
+                new_line(),
+            ),
+            text_break(0, TextBreakKind::Close),
+        ]),
         new_line(),
         tag(")"),
         tag(","),

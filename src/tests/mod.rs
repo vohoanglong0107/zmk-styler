@@ -1,3 +1,3 @@
 mod formatter;
 mod lexer;
-// mod parser;
+mod parser;
