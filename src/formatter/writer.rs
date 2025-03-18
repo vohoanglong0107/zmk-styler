@@ -3,6 +3,9 @@ use super::{
     ir::{Concat, Format, Group, TextBreak, TextBreakKind},
 };
 
+#[cfg(test)]
+use std::sync::atomic::{AtomicU32, Ordering};
+
 #[derive(Default)]
 pub(crate) struct Writer {
     buffer: String,
@@ -64,12 +67,18 @@ impl Writer {
             .for_each(|format| self.write_with_context(format, WriteContext::Concat));
     }
 
-    fn write_group(&mut self, Group(formats): Group) {
-        let mut should_break = false;
-        for format in formats.iter() {
-            //FIXME: This is O(n^2) with n is the number of nested group
-            should_break |= analyze(format);
-        }
+    fn write_group(
+        &mut self,
+        Group {
+            mut formats,
+            broken_to_multilines,
+        }: Group,
+    ) {
+        let should_break = match broken_to_multilines {
+            Some(should_break) => should_break,
+            None => formats.iter_mut().any(analyze),
+        };
+
         for format in formats {
             self.write_with_context(
                 format,
@@ -150,23 +159,47 @@ impl Default for NewLineTracker {
     }
 }
 
-fn analyze(format: &Format) -> bool {
+#[cfg(test)]
+static ANALYZE_COUNTER: AtomicU32 = AtomicU32::new(0);
+
+fn analyze(format: &mut Format) -> bool {
+    #[cfg(test)]
+    ANALYZE_COUNTER.fetch_add(1, Ordering::Relaxed);
+
     match format {
         Format::TextBreak(text_break) => matches!(text_break.kind, TextBreakKind::NewLine),
-        Format::Concat(subnodes) => {
-            let mut should_break = false;
-            for subformat in subnodes.0.iter() {
-                should_break |= analyze(subformat)
-            }
-            should_break
-        }
-        Format::Group(subnodes) => {
-            let mut should_break = false;
-            for subformat in subnodes.0.iter() {
-                should_break |= analyze(subformat)
-            }
+        Format::Concat(subnodes) => subnodes.0.iter_mut().any(analyze),
+        Format::Group(group) => {
+            let should_break = match group.broken_to_multilines {
+                Some(should_break) => should_break,
+                None => group.formats.iter_mut().any(analyze),
+            };
+            group.broken_to_multilines = Some(should_break);
             should_break
         }
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use std::sync::atomic::Ordering;
+
+    use crate::formatter::{
+        rules::{group, tag},
+        writer::ANALYZE_COUNTER,
+        Writer,
+    };
+
+    #[test]
+    fn test_analyze_performance() {
+        let mut test_format = tag("testing");
+        for _ in 0..1000 {
+            test_format = group([test_format])
+        }
+        let mut writer = Writer::default();
+        writer.write(test_format);
+        // Don't need to be exact, just shouldn't be millions
+        assert_eq!(ANALYZE_COUNTER.load(Ordering::Relaxed), 1000)
     }
 }

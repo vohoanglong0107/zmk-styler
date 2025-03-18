@@ -33,7 +33,10 @@ pub(crate) struct Concat(pub LinkedList<Format>);
 /// Group all direct children on a single line,
 /// or break all of them to multiple lines
 #[derive(Clone)]
-pub(crate) struct Group(pub LinkedList<Format>);
+pub(crate) struct Group {
+    pub(super) formats: LinkedList<Format>,
+    pub(super) broken_to_multilines: Option<bool>,
+}
 
 #[derive(Clone)]
 pub(crate) enum Format {
@@ -66,7 +69,7 @@ impl Debug for Concat {
 impl Debug for Group {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "Group ")?;
-        f.debug_list().entries(self.0.iter()).finish()
+        f.debug_list().entries(self.formats.iter()).finish()
     }
 }
 
@@ -99,16 +102,19 @@ pub(super) fn new_line() -> Format {
 
 /// Concatenates multi sub formats
 pub(super) fn concat(formats: impl IntoIterator<Item = Format>) -> Format {
-    Format::Concat(Concat(expand_concatenated_concat(formats)))
+    Format::Concat(Concat(expand_concatenated_format(formats)))
 }
 
 /// Group all formatted text on a single line
 /// Or break them to multiple lines
 pub(super) fn group(formats: impl IntoIterator<Item = Format>) -> Format {
-    Format::Group(Group(expand_concatenated_concat(formats)))
+    Format::Group(Group {
+        formats: expand_concatenated_format(formats),
+        broken_to_multilines: None,
+    })
 }
 
-fn expand_concatenated_concat(formats: impl IntoIterator<Item = Format>) -> LinkedList<Format> {
+fn expand_concatenated_format(formats: impl IntoIterator<Item = Format>) -> LinkedList<Format> {
     let mut combined = LinkedList::new();
     for format in formats {
         match format {
