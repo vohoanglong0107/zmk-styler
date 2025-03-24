@@ -19,9 +19,15 @@ pub(crate) use ir::Format;
 pub(crate) use ir::TextBreakKind;
 pub(crate) use writer::Writer;
 
+type FormatResult = Result<Format, ()>;
+
 pub(crate) fn format(doc: Document, source: &Source, token_source: TokenSource) -> String {
     let mut format_context = FormatContext::new(source, token_source);
-    let format = format_document(&doc, &mut format_context);
+    let format = format_document(doc, &mut format_context);
+    let Ok(format) = format else {
+        // FIXME: don't nuke user's file with syntax errors
+        return "".to_owned();
+    };
 
     let config = Config::default();
     let mut writer = Writer::new(config);

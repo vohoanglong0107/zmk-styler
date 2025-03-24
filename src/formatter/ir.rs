@@ -131,10 +131,3 @@ fn expand_concatenated_format(formats: impl IntoIterator<Item = Format>) -> Link
 pub(crate) fn nil() -> Format {
     Format::Nil
 }
-
-#[cfg(test)]
-mod test {
-    use core::panic;
-
-    use super::*;
-}

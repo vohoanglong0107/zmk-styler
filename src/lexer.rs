@@ -391,7 +391,7 @@ impl BufferedLexer<'_> {
         self.tokens
     }
 
-    fn current_token_range(&mut self) -> SourceRange {
+    pub(crate) fn current_token_range(&mut self) -> SourceRange {
         self.populate_cache(1);
         self.cached_next_tokens.front().unwrap().range
     }

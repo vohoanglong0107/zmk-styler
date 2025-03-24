@@ -3,8 +3,8 @@ mod property;
 
 use crate::{
     ast::{
-        ArrayCell, ArrayValue, AstNode, BoolPropertyDefinition, Document, Identifier, IntValue,
-        Label, NodeBody, NodeBodyEntry, NodeDefinition, NonBoolPropertyDefinition,
+        ArrayCell, ArrayValue, AstNode, BoolPropertyDefinition, Document, IntCell, Label, NodeBody,
+        NodeBodyEntries, NodeBodyEntry, NodeDefinition, NodeIdentifier, NonBoolPropertyDefinition,
         PropertyDefinition, PropertyName, PropertyValue, PropertyValues, Statement, StringValue,
     },
     formatter::{
@@ -23,7 +23,23 @@ fn debug_ast(test_str: &str) -> String {
             let mut writer = Writer::default();
             writer.write(serialize_doc(doc, &formatter))
         }
-        Err(e) => e.to_string(),
+        Err(e) => {
+            let range = e.range.unwrap();
+            let snippet = annotate_snippets::Level::Error
+                .title("expected type, found `22`")
+                .snippet(
+                    annotate_snippets::Snippet::source(test_str)
+                        .line_start(26)
+                        .origin("examples/footer.rs")
+                        .fold(true)
+                        .annotation(annotate_snippets::Level::Error.span(range.into()).label(
+                            "expected struct `annotate_snippets::snippet::Slice`, found reference",
+                        )),
+                );
+            let renderer = annotate_snippets::Renderer::styled();
+            anstream::println!("{}", renderer.render(snippet));
+            e.to_string()
+        }
     }
 }
 
@@ -34,7 +50,7 @@ fn serialize_doc(doc: Document, f: &FormatContext) -> Format {
         tag("("),
         group([
             text_break(0, TextBreakKind::Open),
-            serialize_statements(doc.statements, f),
+            serialize_statements(doc.statements().into_iter().collect(), f),
             text_break(0, TextBreakKind::Close),
         ]),
         new_line(),
@@ -58,13 +74,14 @@ fn serialize_statement(statement: Statement, f: &FormatContext) -> Format {
 fn serialize_node(node: NodeDefinition, f: &FormatContext) -> Format {
     list([
         tag("Node@"),
-        tag(node.range),
+        tag(node.range()),
         tag("("),
         group([
             text_break(0, TextBreakKind::Open),
-            node.label.map_or(nil(), |label| serialize_label(label, f)),
-            serialize_node_identifier(node.identifier, f),
-            serialize_node_body(node.body, f),
+            node.label()
+                .map_or(nil(), |label| serialize_label(label, f)),
+            serialize_node_identifier(node.identifier().unwrap(), f),
+            serialize_node_body(node.body().unwrap(), f),
             text_break(0, TextBreakKind::Close),
         ]),
         new_line(),
@@ -85,7 +102,7 @@ fn serialize_label(label: Label, f: &FormatContext) -> Format {
     ])
 }
 
-fn serialize_node_identifier(identifier: Identifier, f: &FormatContext) -> Format {
+fn serialize_node_identifier(identifier: NodeIdentifier, f: &FormatContext) -> Format {
     list([
         tag("Identifier@"),
         tag(identifier.range()),
@@ -102,13 +119,13 @@ fn serialize_node_body(node_body: NodeBody, f: &FormatContext) -> Format {
         tag("NodeBody@"),
         tag(node_body.range()),
         tag("("),
-        if node_body.entries.is_empty() {
+        if node_body.entries().unwrap().into_iter().count() == 0 {
             text(&node_body, f.source)
         } else {
             pair(
                 group([
                     text_break(0, TextBreakKind::Open),
-                    serialize_node_body_entries(node_body.entries, f),
+                    serialize_node_body_entries(node_body.entries().unwrap(), f),
                     text_break(0, TextBreakKind::Close),
                 ]),
                 new_line(),
@@ -119,7 +136,7 @@ fn serialize_node_body(node_body: NodeBody, f: &FormatContext) -> Format {
     ])
 }
 
-fn serialize_node_body_entries(entries: Vec<NodeBodyEntry>, f: &FormatContext) -> Format {
+fn serialize_node_body_entries(entries: NodeBodyEntries, f: &FormatContext) -> Format {
     separated_list(
         entries
             .into_iter()
@@ -149,7 +166,7 @@ fn serialize_bool_property(property: BoolPropertyDefinition, f: &FormatContext) 
         tag("("),
         list([
             text_break(0, TextBreakKind::Open),
-            serialize_property_name(property.name, f),
+            serialize_property_name(property.name().unwrap(), f),
             text_break(0, TextBreakKind::Close),
         ]),
         new_line(),
@@ -165,9 +182,9 @@ fn serialize_non_bool_property(property: NonBoolPropertyDefinition, f: &FormatCo
         tag("("),
         group([
             text_break(0, TextBreakKind::Open),
-            serialize_property_name(property.name, f),
+            serialize_property_name(property.name().unwrap(), f),
             new_line(),
-            serialize_property_values(property.values, f),
+            serialize_property_values(property.values().unwrap(), f),
             text_break(0, TextBreakKind::Close),
         ]),
         new_line(),
@@ -212,7 +229,6 @@ fn serialize_property_value(property_value: PropertyValue, f: &FormatContext) ->
     match property_value {
         PropertyValue::Array(array) => serialize_array(array, f),
         PropertyValue::String(s) => serialize_string(s, f),
-        _ => todo!(),
     }
 }
 
@@ -240,11 +256,10 @@ fn serialize_array(array: ArrayValue, f: &FormatContext) -> Format {
 fn serialize_array_cell(cell: ArrayCell, f: &FormatContext) -> Format {
     match cell {
         ArrayCell::Int(int_value) => serialize_int_value(int_value, f),
-        _ => todo!(),
     }
 }
 
-fn serialize_int_value(cell: IntValue, f: &FormatContext) -> Format {
+fn serialize_int_value(cell: IntCell, f: &FormatContext) -> Format {
     list([
         tag("Int@"),
         tag(cell.range()),

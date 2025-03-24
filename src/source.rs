@@ -71,6 +71,15 @@ impl SourceRange {
     }
 }
 
+impl From<SourceRange> for core::ops::Range<usize> {
+    fn from(value: SourceRange) -> Self {
+        Self {
+            start: value.start.value,
+            end: value.end.value,
+        }
+    }
+}
+
 impl SourceIndex {
     pub(crate) fn increment(&self) -> Self {
         Self {

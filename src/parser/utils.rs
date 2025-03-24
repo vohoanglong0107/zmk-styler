@@ -1,20 +1,16 @@
-use crate::{ast::AstNode, lexer::TokenKind};
+use crate::lexer::TokenKind;
 
-use super::{ParseError, Parser};
+use super::Parser;
 
 // TODO: recovery from ill-formed node
-pub(super) fn parse_list<T, F>(
+pub(super) fn parse_list<F>(
     p: &mut Parser,
     element_parser: F,
     end: TokenKind,
     separator: Option<TokenKind>,
-) -> Result<Vec<T>, ParseError>
-where
-    T: AstNode,
-    F: Fn(&mut Parser) -> Result<T, ParseError>,
+) where
+    F: Fn(&mut Parser),
 {
-    let mut elements = Vec::new();
-
     let mut is_first = true;
     loop {
         if p.at(end) {
@@ -22,12 +18,11 @@ where
         }
         if let Some(separator) = separator {
             if !is_first {
-                p.expect(separator)?;
+                p.expect(separator);
             } else {
                 is_first = false;
             }
         };
-        elements.push(element_parser(p)?);
+        element_parser(p);
     }
-    Ok(elements)
 }

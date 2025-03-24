@@ -1,20 +1,13 @@
-use crate::{
-    ast::{Document, Statement},
-    lexer::TokenKind,
-};
+use crate::lexer::TokenKind;
 
-use super::{node::parse_node, utils::parse_list, ParseError, Parser};
+use super::{node::parse_node, utils::parse_list, Parser, SyntaxKind};
 
-pub(crate) fn parse_document(p: &mut Parser) -> Result<Document, ParseError> {
+pub(crate) fn parse_document(p: &mut Parser) {
     let start = p.start();
-    let statements = parse_list(p, parse_statement, TokenKind::EOF, None)?;
-    Ok(Document {
-        statements,
-
-        range: p.end(start),
-    })
+    parse_list(p, parse_statement, TokenKind::EOF, None);
+    p.end(start, SyntaxKind::Document)
 }
 
-pub(crate) fn parse_statement(p: &mut Parser) -> Result<Statement, ParseError> {
-    Ok(Statement::Node(parse_node(p)?))
+pub(crate) fn parse_statement(p: &mut Parser) {
+    parse_node(p)
 }
