@@ -1,4 +1,6 @@
-use crate::{lexer::Token, source::SourceIndex};
+use crate::lexer::Token;
+#[cfg(test)]
+use crate::source::SourceIndex;
 
 pub(crate) struct TokenSource {
     pub(crate) tokens: Vec<Token>,
@@ -9,6 +11,7 @@ impl TokenSource {
         Self { tokens }
     }
 
+    #[cfg(test)]
     pub(crate) fn get_line_number(&self, source_index: SourceIndex) -> u32 {
         let token_index = self
             .tokens

@@ -2,7 +2,6 @@ use core::panic;
 use std::cell::{Cell, RefCell};
 
 use document::parse_document;
-use thiserror::Error;
 
 use crate::{
     ast::{AstNode, Document, SyntaxKind, SyntaxNodeBuilder},
@@ -23,13 +22,6 @@ pub(crate) struct Parser<'src> {
     diasnostics: Vec<ParseError>,
 }
 
-#[derive(Error, Debug)]
-#[error("{msg}")]
-pub(crate) struct ParseError {
-    msg: String,
-    pub(crate) range: Option<SourceRange>,
-}
-
 impl<'src> Parser<'src> {
     pub(crate) fn new(lexer: BufferedLexer<'src>) -> Self {
         Self {
@@ -44,7 +36,7 @@ impl<'src> Parser<'src> {
         if self.at(kind) {
             self.bump(kind)
         } else {
-            self.diasnostics.push(ParseError::with_range(
+            self.diasnostics.push(ParseError::new(
                 format!("Expected {kind}, but found {}", self.current_token_kind()),
                 self.lexer.get_mut().current_token_range(),
             ))
@@ -70,6 +62,10 @@ impl<'src> Parser<'src> {
         self.nth_at(0, kind)
     }
 
+    pub(super) fn at_any(&self, kinds: &[TokenKind]) -> bool {
+        kinds.iter().any(|kind| self.at(*kind))
+    }
+
     pub(super) fn nth_at(&self, pos: usize, kind: TokenKind) -> bool {
         let token = self.nth(pos);
         token.kind == kind
@@ -80,6 +76,14 @@ impl<'src> Parser<'src> {
         let token = lexer.advance();
 
         assert_eq!(token.kind, kind);
+        let current_node = self.nodes.last_mut().unwrap();
+        current_node.push_token(token);
+    }
+
+    pub(super) fn bump_any(&mut self) {
+        let lexer = self.lexer.get_mut();
+        let token = lexer.advance();
+
         let current_node = self.nodes.last_mut().unwrap();
         current_node.push_token(token);
     }
@@ -102,28 +106,38 @@ impl<'src> Parser<'src> {
         }
     }
 
-    pub(super) fn finish(mut self) -> (Document, TokenSource) {
+    pub(super) fn finish(mut self) -> (Document, TokenSource, Vec<ParseError>) {
         assert_eq!(self.nodes.len(), 1);
         let token_source = TokenSource::new(self.lexer.into_inner().finish());
         let root = self.nodes.pop().unwrap();
-        (Document::cast(&root.build()).unwrap(), token_source)
+        (
+            Document::cast(&root.build()).unwrap(),
+            token_source,
+            self.diasnostics,
+        )
     }
 }
 
-pub(crate) fn parse(source: &Source) -> Result<(Document, TokenSource), ParseError> {
+pub(crate) fn parse(source: &Source) -> (Document, TokenSource, Vec<ParseError>) {
     let lexer = Lexer::new(source);
     let lexer = BufferedLexer::new(lexer);
     let mut parser = Parser::new(lexer);
     parse_document(&mut parser);
-    let comments = parser.finish();
-    Ok(comments)
+
+    parser.finish()
+}
+
+#[derive(Debug)]
+pub(crate) struct ParseError {
+    pub(crate) msg: String,
+    pub(crate) range: SourceRange,
 }
 
 impl ParseError {
-    fn with_range(msg: impl ToString, range: SourceRange) -> Self {
+    fn new(msg: impl ToString, range: SourceRange) -> Self {
         Self {
             msg: msg.to_string(),
-            range: Some(range),
+            range,
         }
     }
 }

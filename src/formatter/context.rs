@@ -6,11 +6,11 @@ use crate::{
 
 pub(crate) struct FormatContext<'src> {
     pub(crate) source: &'src Source<'src>,
-    pub(crate) trivia: TriviaFormatContext,
+    pub(crate) trivia: TriviaFormatContext<'src>,
 }
 
 impl<'src> FormatContext<'src> {
-    pub(crate) fn new(source: &'src Source<'src>, trivia: TokenSource) -> Self {
+    pub(crate) fn new(source: &'src Source<'src>, trivia: &'src TokenSource) -> Self {
         Self {
             source,
             trivia: TriviaFormatContext::new(trivia),
@@ -18,11 +18,11 @@ impl<'src> FormatContext<'src> {
     }
 }
 
-pub(crate) struct TriviaFormatContext {
-    token_source: TokenSource,
+pub(crate) struct TriviaFormatContext<'src> {
+    token_source: &'src TokenSource,
 }
 
-impl TriviaFormatContext {
+impl<'src> TriviaFormatContext<'src> {
     pub(crate) fn leading_trivia(&self, range: SourceRange) -> Vec<Token> {
         let mut trivia = Vec::new();
         let Some(closest_preceding_trivia_index) = self.get_closest_preceding_trivia_for(range)
@@ -73,7 +73,7 @@ impl TriviaFormatContext {
         trivia
     }
 
-    fn new(trivia: TokenSource) -> Self {
+    fn new(trivia: &'src TokenSource) -> Self {
         Self {
             token_source: trivia,
         }

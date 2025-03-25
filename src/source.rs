@@ -69,6 +69,18 @@ impl SourceRange {
     pub(crate) fn end(&self) -> SourceIndex {
         self.end
     }
+
+    #[cfg(test)]
+    pub(crate) fn limit(self, limit: usize) -> Self {
+        Self {
+            start: SourceIndex {
+                value: self.start.value.min(limit),
+            },
+            end: SourceIndex {
+                value: self.end.value.min(limit),
+            },
+        }
+    }
 }
 
 impl From<SourceRange> for core::ops::Range<usize> {

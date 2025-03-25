@@ -261,10 +261,6 @@ impl Token {
         )
     }
 
-    pub(crate) fn is_comment(&self) -> bool {
-        matches!(self.kind, TokenKind::B_COMMENT | TokenKind::S_COMMENT)
-    }
-
     pub(crate) fn is_single_line_comment(&self) -> bool {
         matches!(self.kind, TokenKind::S_COMMENT)
     }

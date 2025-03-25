@@ -10,8 +10,8 @@ mod trivia;
 
 fn debug_format(test_str: &str) -> Format {
     let source = Source::new(test_str);
-    let (doc, comments) = parse(&source).unwrap();
-    let mut format_context = FormatContext::new(&source, comments);
+    let (doc, token_source, _) = parse(&source);
+    let mut format_context = FormatContext::new(&source, &token_source);
     format_document(doc, &mut format_context).unwrap()
 }
 

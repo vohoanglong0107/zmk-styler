@@ -20,6 +20,11 @@ pub(crate) struct Document {
 }
 
 impl Document {
+    #[cfg(test)]
+    pub(crate) fn syntax(&self) -> SyntaxNode {
+        self.syntax.clone()
+    }
+
     pub(crate) fn statements(&self) -> impl IntoIterator<Item = Statement> + '_ {
         get_child_nodes(&self.syntax)
     }
@@ -101,10 +106,6 @@ pub(crate) struct NodeBody {
 impl NodeBody {
     pub(crate) fn entries(&self) -> SyntaxResult<NodeBodyEntries> {
         get_child_node(&self.syntax)
-    }
-
-    pub(crate) fn l_curly(&self) -> SyntaxResult<Token> {
-        get_token(&self.syntax, TokenKind::L_CURLY)
     }
 
     pub(crate) fn r_curly(&self) -> SyntaxResult<Token> {
@@ -589,9 +590,9 @@ pub(crate) type SyntaxNode = Rc<SyntaxNodeData>;
 
 #[derive(Debug)]
 pub(crate) struct SyntaxNodeData {
-    kind: SyntaxKind,
-    children: Vec<SyntaxNodeChild>,
-    range: SourceRange,
+    pub(crate) kind: SyntaxKind,
+    pub(crate) children: Vec<SyntaxNodeChild>,
+    pub(crate) range: SourceRange,
 }
 
 pub(crate) struct SyntaxNodeBuilder {

@@ -2,7 +2,9 @@ use crate::lexer::TokenKind;
 
 use super::{property::parse_property, utils::parse_list, Parser, SyntaxKind};
 
-pub(crate) fn parse_node(p: &mut Parser) {
+pub(super) const END_OF_NODE_SET: [TokenKind; 2] = [TokenKind::R_CURLY, TokenKind::COLON];
+
+pub(super) fn parse_node(p: &mut Parser) {
     let start = p.start();
     parse_label(p);
     parse_node_identifier(p);
@@ -72,22 +74,41 @@ fn parse_node_body(p: &mut Parser) {
 
 fn parse_node_body_entries(p: &mut Parser) {
     let start = p.start();
-    parse_list(p, parse_node_body_entry, TokenKind::R_CURLY, None);
+    parse_list(
+        p,
+        parse_node_body_entry,
+        is_at_node_body_entry,
+        TokenKind::R_CURLY,
+        None,
+        is_node_body_entry_recovered,
+    );
     p.end(start, SyntaxKind::NodeBodyEntries)
 }
 
 fn parse_node_body_entry(p: &mut Parser) {
     if is_at_node_property(p) {
         parse_property(p)
-    } else if is_at_child_node(p) {
+    } else if is_at_node(p) {
         parse_node(p)
     }
+}
+
+fn is_at_node_body_entry(p: &Parser) -> bool {
+    is_at_node(p) || is_at_node_property(p)
+}
+
+pub(super) fn is_at_node(p: &Parser) -> bool {
+    is_at_label(p) || p.at(TokenKind::NAME) || p.at(TokenKind::ROOT)
+}
+
+fn is_at_label(p: &Parser) -> bool {
+    p.nth_at(1, TokenKind::COLON)
 }
 
 fn is_at_node_property(p: &Parser) -> bool {
     p.at(TokenKind::NAME) && (p.nth_at(1, TokenKind::SEMICOLON) || p.nth_at(1, TokenKind::EQUAL))
 }
 
-fn is_at_child_node(p: &Parser) -> bool {
-    p.at(TokenKind::NAME) || p.at(TokenKind::ROOT)
+fn is_node_body_entry_recovered(p: &Parser) -> bool {
+    is_at_node_body_entry(p) || p.at_any(&END_OF_NODE_SET)
 }
